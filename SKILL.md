@@ -65,35 +65,133 @@ Also tested with: Goose, Windsurf, VS Code. Open source: [github.com/fulcradynam
 2. They generate an access token via the [Python client](https://github.com/fulcradynamics/fulcra-api-python) or Portal
 3. Store the token: `skills.entries.fulcra-context.apiKey` in openclaw.json
 
+### Option 3: Python Client (Tested & Proven)
+
+```bash
+pip3 install fulcra-api
+```
+
+```python
+from fulcra_api.core import FulcraAPI
+
+api = FulcraAPI()
+api.authorize()  # Opens device flow — human visits URL and logs in
+
+# Now you have access:
+sleep = api.metric_samples(start, end, "SleepStage")
+hr = api.metric_samples(start, end, "HeartRate")
+events = api.calendar_events(start, end)
+catalog = api.metrics_catalog()
+```
+
+Save the token for automation:
+```python
+import json
+import base64
+
+# Extract user_id from JWT (more reliable than API call)
+def extract_user_id(access_token):
+    encoded = access_token.split('.')[1]
+    padding = 4 - len(encoded) % 4
+    if padding != 4:
+        encoded += '=' * padding
+    payload = json.loads(base64.urlsafe_b64decode(encoded))
+    return payload.get("sub")
+
+token_data = {
+    "access_token": api.fulcra_cached_access_token,
+    "expiration": api.fulcra_cached_access_token_expiration.isoformat(),
+    "user_id": extract_user_id(api.fulcra_cached_access_token),
+    "refresh_token": getattr(api, 'fulcra_cached_refresh_token', None)
+}
+with open(os.path.expanduser("~/.config/fulcra/token.json"), "w") as f:
+    json.dump(token_data, f, indent=2)
+```
+
+**Important:** The `user_id` is extracted from the JWT's `sub` claim. This is required for calendar and some other endpoints. The auth script (`fulcra_auth.py`) handles this automatically.
+
+Token expires in ~24h. Use the built-in token manager for automatic refresh (see below).
+
+### Token Lifecycle Management
+
+The skill includes `scripts/fulcra_auth.py` which handles the full OAuth2 lifecycle — including **refresh tokens** so your human only authorizes once.
+
+```bash
+# First-time setup (interactive — human approves via browser)
+python3 scripts/fulcra_auth.py authorize
+
+# Refresh token before expiry (automatic, no human needed)
+python3 scripts/fulcra_auth.py refresh
+
+# Check token status
+python3 scripts/fulcra_auth.py status
+
+# Get current access token (auto-refreshes if needed, for piping)
+export FULCRA_ACCESS_TOKEN=$(python3 scripts/fulcra_auth.py token)
+```
+
+**How it works:**
+- `authorize` runs the Auth0 device flow and saves both the access token AND refresh token
+- `refresh` uses the saved refresh token to get a new access token — no human interaction
+- `token` prints the access token (auto-refreshing if expired) — perfect for cron jobs and scripts
+
+**Set up a cron job to keep the token fresh:**
+
+For OpenClaw agents, add a cron job that refreshes the token every 12 hours:
+```
+python3 /path/to/skills/fulcra-context/scripts/fulcra_auth.py refresh
+```
+
+Token data is stored at `~/.config/fulcra/token.json` (permissions restricted to owner).
+
 ## Quick Commands
+
+**Recommended:** Use the Python client for reliable data access. The REST API endpoints vary by metric type.
 
 ### Check sleep (last night)
 
-```bash
-# Get time series for sleep stages (last 24h)
-curl -s "https://api.fulcradynamics.com/data/v0/time_series_grouped?metrics=SleepStage&start=$(date -u -v-24H +%Y-%m-%dT%H:%M:%SZ)&end=$(date -u +%Y-%m-%dT%H:%M:%SZ)&samprate=300" \
-  -H "Authorization: Bearer $FULCRA_ACCESS_TOKEN"
+```python
+from datetime import datetime, timezone, timedelta
+from fulcra_api.core import FulcraAPI
+
+api = FulcraAPI()
+# Load token (see Token Lifecycle section)
+now = datetime.now(timezone.utc)
+start = (now - timedelta(hours=14)).isoformat()
+end = now.isoformat()
+
+sleep = api.metric_samples(start, end, "SleepStage")
+# Stage values: 0=InBed, 1=Awake, 2=Core, 3=Deep, 4=REM
 ```
 
 ### Check heart rate (recent)
 
-```bash
-curl -s "https://api.fulcradynamics.com/data/v0/time_series_grouped?metrics=HeartRate&start=$(date -u -v-2H +%Y-%m-%dT%H:%M:%SZ)&end=$(date -u +%Y-%m-%dT%H:%M:%SZ)&samprate=60" \
-  -H "Authorization: Bearer $FULCRA_ACCESS_TOKEN"
+```python
+hr = api.metric_samples(
+    (now - timedelta(hours=2)).isoformat(),
+    now.isoformat(),
+    "HeartRate"
+)
+values = [s['value'] for s in hr if 'value' in s]
+avg_hr = sum(values) / len(values) if values else None
 ```
 
 ### Check today's calendar
 
-```bash
-curl -s "https://api.fulcradynamics.com/data/v0/{fulcra_userid}/calendar_events?start=$(date -u +%Y-%m-%dT00:00:00Z)&end=$(date -u +%Y-%m-%dT23:59:59Z)" \
-  -H "Authorization: Bearer $FULCRA_ACCESS_TOKEN"
+```python
+day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+day_end = day_start + timedelta(hours=24)
+events = api.calendar_events(day_start.isoformat(), day_end.isoformat())
+for e in events:
+    print(f"{e.get('title')} — {e.get('start_time')}")
 ```
 
 ### Available metrics
 
-```bash
-curl -s "https://api.fulcradynamics.com/data/v0/metrics_catalog" \
-  -H "Authorization: Bearer $FULCRA_ACCESS_TOKEN"
+```python
+catalog = api.metrics_catalog()
+for metric in catalog:
+    print(metric.get('name'), '-', metric.get('description'))
 ```
 
 ## Key Metrics
@@ -122,12 +220,40 @@ After intense workout or poor sleep → suggest lighter schedule, remind about h
 ### Travel Awareness
 Location changes → adjust timezone handling, suggest local info, modify schedule expectations.
 
-## Demo Mode vs Private Mode
+## Demo Mode
 
-When sharing publicly (Moltbook, X, etc.):
-- ✅ OK to share: biometric trends, sleep quality, step counts, HRV (anonymized)
-- ❌ NEVER share: real location, real calendar events, identifying data
-- Use simulated location/calendar data for public demos
+For public demos (VC pitches, livestreams, conferences), enable demo mode to swap in synthetic calendar and location data while keeping real biometrics.
+
+### Activation
+
+```bash
+# Environment variable (recommended for persistent config)
+export FULCRA_DEMO_MODE=true
+
+# Or pass --demo flag to collect_briefing_data.py
+python3 collect_briefing_data.py --demo
+```
+
+### What changes in demo mode
+
+| Data Type | Demo Mode | Normal Mode |
+|-----------|-----------|-------------|
+| Sleep, HR, HRV, Steps | ✅ Real data | ✅ Real data |
+| Calendar events | 🔄 Synthetic (rotating schedules) | ✅ Real data |
+| Location | 🔄 Synthetic (curated NYC spots) | ✅ Real data |
+| Weather | ✅ Real data | ✅ Real data |
+
+### Transparency
+
+- Output JSON includes `"demo_mode": true` at the top level
+- Calendar and location objects include `"demo_mode": true`
+- When presenting to humans, include a subtle "📍 Demo mode" indicator
+
+### What's safe to share publicly
+
+- ✅ Biometric trends, sleep quality, step counts, HRV — cleared for public
+- ✅ Synthetic calendar and location (demo mode) — designed for public display
+- ❌ NEVER share real location, real calendar events, or identifying data
 
 ## Links
 
