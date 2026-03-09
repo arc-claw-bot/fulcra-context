@@ -104,12 +104,33 @@ Detect location changes → adjust timezone handling, suggest local info, modify
 
 **Read [SECURITY.md](SECURITY.md) before deploying.** This skill accesses sensitive personal data. Key risks include token exposure, calendar/location leakage, and prompt injection attacks. The security guide covers mitigations for each.
 
+## Timezone Handling
+
+All scripts use `fulcra_timezone.py` — a shared utility that reads timezone from your Fulcra user profile. This means:
+
+- **Automatic DST handling** — no hardcoded offsets that break twice a year
+- **User-specific** — respects whatever timezone you set in Fulcra
+- **Cached** — one API call per day, then disk cache
+
+```python
+from fulcra_timezone import now_local, to_local, get_user_tz
+
+# Get current time in user's timezone
+now = now_local()
+
+# Convert a UTC datetime to local
+local_dt = to_local(some_utc_datetime)
+```
+
 ## Files
 
 | File | Purpose |
 |------|---------|
 | `SKILL.md` | OpenClaw skill definition (API reference, quick commands) |
 | `SECURITY.md` | Security & privacy guide (risks, mitigations, best practices) |
+| `scripts/fulcra_timezone.py` | Shared timezone utility (DST-aware, from Fulcra user profile) |
+| `scripts/fulcra_calendar.py` | Fetch upcoming calendar events |
+| `scripts/fulcra_auth.py` | OAuth2 token management |
 | `README.md` | This file |
 
 ## Links
