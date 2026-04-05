@@ -255,6 +255,191 @@ python3 collect_briefing_data.py --demo
 - ✅ Synthetic calendar and location (demo mode) — designed for public display
 - ❌ NEVER share real location, real calendar events, or identifying data
 
+## Battle-Tested Utilities
+
+The skill includes production-ready utilities for comprehensive sleep and biometric analysis:
+
+### Annotations API
+
+Track user-logged events and correlate with biometric data:
+
+```python
+from fulcra_annotations import fetch_annotations
+
+data = fetch_annotations(days=7)
+# Returns structured data:
+# - Coffee timing and late consumption warnings
+# - Morning pills, evening medications adherence
+# - Elemind neurostim headband usage
+# - Subjective mood and sleep quality ratings
+# - Dream intensity, wake-up counts, nocturia
+# - Supplement dosages and timing
+```
+
+**Annotation Types:**
+- **Moment**: Coffee, pills, Elemind, semaglutide (timestamp events)
+- **Scale**: Mood, sleep quality, dream intensity (1-5 ratings)
+- **Numeric**: Wake-up count, nocturia frequency, supplement mg
+- **Boolean**: Yes/no events (future-proofed)
+- **Duration**: Timed activities (future-proofed)
+
+**Key Correlations:**
+- Late coffee (after 2 PM) impacts deep sleep percentage
+- Elemind usage correlates with improved deep sleep metrics
+- Evening medication timing affects sleep onset
+- Subjective vs. objective sleep quality mismatches reveal insights
+
+### Sleep Stage Math
+
+**CRITICAL:** Use `sleep_cycles.total_time_asleep_ms` for authoritative sleep duration — it matches Apple Health. Manually summing stage durations from `sleep_agg` undercounts by ~20% because it misses transitional periods.
+
+```python
+from fulcra_sleep_utils import get_last_night_sleep, get_sleep_history
+
+# Last night's sleep with proper stage math
+sleep = get_last_night_sleep()
+# Returns: total_sleep_h, stages (dict), deep_pct, rem_pct, 
+#          efficiency, fragmentation, bedtime/wake strings
+
+# 7-day sleep trends
+history = get_sleep_history(days=7)
+```
+
+**UTC Date Selection Fix:** Fulcra's `sleep_agg` API buckets by UTC calendar day. The bucket for a given UTC date contains sleep that ENDED on that UTC day. Using today's local date (not current UTC date) as the target fixes the "PM bug" where evening API calls return empty results.
+
+### Timezone Handling
+
+**NEVER hardcode timezones.** Use the shared timezone utility:
+
+```python
+from fulcra_timezone import get_user_tz, now_local, today_local, to_local
+
+# User's timezone from Fulcra profile (handles DST automatically)
+tz = get_user_tz()  # Returns ZoneInfo object
+
+# Current time in user's local timezone
+now = now_local()
+today = today_local()
+
+# Convert UTC datetime to user's local time
+local_dt = to_local(utc_datetime)
+```
+
+**Features:**
+- Fetches timezone from Fulcra user profile
+- Disk caching (refreshed daily)
+- Automatic DST handling via Python's `ZoneInfo`
+- Fallback chain: API → cache → env var → America/New_York
+
+### Sleep Briefing Pipeline
+
+Generate comprehensive sleep analysis with cross-referenced data streams:
+
+```python
+from fulcra_sleep_briefing import run
+
+result = run()  # Generates JSON + plain text briefing
+# Cross-references: sleep stages, HRV, RHR, calendar load,
+# exercise timing, coffee/medication logs, subjective ratings
+```
+
+**Data Integration:**
+- Sleep metrics (stages, efficiency, fragmentation)
+- Heart rate variability (HRV) and resting heart rate (RHR) trends
+- Overnight heart rate curve (min/max/avg)
+- Calendar meeting load (distinguishes real meetings from time blocks)
+- Exercise/walk detection from step count and walking speed
+- Location data for sleep context
+- Coffee timing, Elemind usage, evening medication adherence
+- Subjective sleep quality vs. objective metrics
+
+**LLM Integration:** Uses configurable LLM endpoint (OpenClaw gateway by default) to generate human-readable analysis. Sanitized for public use — no personal references.
+
+### Data Staleness Detection
+
+Monitor biometric data freshness and alert on sync failures:
+
+```python
+from fulcra_data_watchdog import main
+
+# Check if heart rate data is stale (>12h old)
+# Exits 0 = OK, 1 = STALE (needs escalation)
+main()
+```
+
+**Use case:** Apple Watch sync failures, Fulcra service issues, account problems. Run via cron every 2-4 hours.
+
+### Chart Generation
+
+Generate publication-ready sleep visualizations:
+
+```python
+from sleep_chart import create_chart
+
+# Dark theme, health-tech aesthetic
+create_chart(sleep_data, "sleep-analysis.png")
+# Generates: donut chart, stage breakdown bar, 7-night trends,
+# sleep+efficiency dual-axis charts
+```
+
+**Features:**
+- Premium dark theme optimized for health data
+- Sleep stage proportions with efficiency metrics
+- 7-night deep sleep and total sleep trends
+- Matplotlib-based, high DPI output
+
+## Environment Configuration
+
+The utilities support flexible deployment via environment variables:
+
+```bash
+# Data output directory (default: ~/.openclaw/data/fulcra-analysis)
+export FULCRA_OUTPUT_DIR=/custom/path
+
+# LLM endpoint for briefing generation (default: OpenClaw gateway)
+export LLM_ENDPOINT=http://localhost:8080/v1/chat/completions
+export LLM_MODEL=gpt-4
+export LLM_API_TOKEN=your_token
+
+# Context directory for biometric theories/baselines
+export CONTEXT_DIR=~/.openclaw/memory/topics
+
+# User timezone override (default: from Fulcra API)
+export OPENCLAW_TIMEZONE=America/New_York
+```
+
+## Deployment Patterns
+
+### Cron Automation
+
+```bash
+# Refresh Fulcra token every 12 hours
+0 */12 * * * python3 scripts/fulcra_auth.py refresh
+
+# Generate sleep briefing every 2 hours (pre-computed)
+0 */2 * * * python3 scripts/fulcra_sleep_briefing.py
+
+# Data staleness check every 4 hours
+0 */4 * * * python3 scripts/fulcra_data_watchdog.py || echo "STALE DATA ALERT"
+```
+
+### Integration with AI Agents
+
+```python
+# Instant sleep response (pre-computed)
+with open('data/fulcra-analysis/sleep-briefing.txt') as f:
+    briefing = f.read()
+    # Already formatted, just send to user
+
+# Historical analysis
+history = get_sleep_history(days=30)
+avg_deep = sum(n['deep_pct'] for n in history) / len(history)
+
+# Context-aware responses
+if last_hrv < baseline_hrv * 0.8:
+    tone = "brief and supportive"  # User is stressed
+```
+
 ## Links
 
 - [Fulcra Platform](https://fulcradynamics.com)

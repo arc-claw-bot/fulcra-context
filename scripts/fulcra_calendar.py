@@ -2,7 +2,6 @@
 """Fetch upcoming calendar events from Fulcra API."""
 import json, os, sys, argparse
 from datetime import datetime, timezone, timedelta
-from fulcra_timezone import now_local
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--hours", type=int, default=2)
