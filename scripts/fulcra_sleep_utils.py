@@ -42,7 +42,9 @@ def _et():
 # This will be set on first use
 ET = get_user_tz()
 
-STAGE_NAMES = {2: 'deep', 3: 'core', 4: 'rem', 5: 'awake'}
+# Apple HealthKit sleep stage values:
+# 0 = InBed, 1 = Asleep (unspecified), 2 = Awake, 3 = Core, 4 = Deep, 5 = REM
+STAGE_NAMES = {2: 'awake', 3: 'core', 4: 'deep', 5: 'rem'}
 
 
 def get_fulcra_client():
@@ -162,7 +164,7 @@ def get_last_night_sleep(client=None, target_date=None):
             name = STAGE_NAMES.get(stage, f'stage_{stage}')
             stages[name] = stages.get(name, 0) + round(ms / 60000, 1)
             
-            if stage in (2, 3, 4):  # deep, core, rem = actual sleep
+            if stage in (3, 4, 5):  # core, deep, rem = actual sleep stages
                 stage_sleep_ms += ms
                 min_start = str(row.get('min_start_time', ''))
                 max_end = str(row.get('max_end_time', ''))
@@ -170,7 +172,7 @@ def get_last_night_sleep(client=None, target_date=None):
                     sleep_start = min_start
                 if max_end and max_end != 'nan' and (not sleep_end or max_end > sleep_end):
                     sleep_end = max_end
-            elif stage == 5:  # awake
+            elif stage == 2:  # awake
                 awake_ms += ms
     
     # --- Determine authoritative total sleep duration ---
