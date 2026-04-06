@@ -32,9 +32,7 @@ logger = logging.getLogger(__name__)
 def _user_tz():
     """Get user timezone object for constructing date boundaries. NEVER use timezone.utc for local dates."""
     try:
-        tz_name = get_user_tz()
-        if tz_name:
-            return ZoneInfo(tz_name)
+        return get_user_tz()
     except Exception:
         pass
     return ZoneInfo("America/New_York")  # Fallback
@@ -83,10 +81,10 @@ def fetch_hrv_rhr(client, days=7):
             start = datetime(today.year, today.month, today.day, tzinfo=_user_tz()) - timedelta(days=days)
             end = datetime(today.year, today.month, today.day, tzinfo=_user_tz()) + timedelta(days=1)
             df = client.metric_samples(start.isoformat(), end.isoformat(), metric_name)
-            if hasattr(df, 'iterrows') and len(df) > 0:
-                for _, row in df.iterrows():
-                    val = row.get('value', row.get('avg', None))
-                    date_str = str(row.get('start_date', row.get('start_time', '')))[:10]
+            if isinstance(df, list) and len(df) > 0:
+                for row in df:
+                    val = row.get('value')
+                    date_str = str(row.get('start_date', ''))[:10]
                     if val is not None:
                         results[metric_key].append({
                             "date": date_str,
@@ -107,11 +105,11 @@ def fetch_hr_overnight(client):
         end = datetime(today.year, today.month, today.day, tzinfo=_user_tz()) + timedelta(hours=12)
         
         df = client.metric_samples(start.isoformat(), end.isoformat(), "HeartRate")
-        if hasattr(df, 'iterrows') and len(df) > 0:
+        if isinstance(df, list) and len(df) > 0:
             readings = []
-            for _, row in df.iterrows():
-                val = row.get('value', row.get('avg'))
-                ts = str(row.get('start_date', row.get('start_time', '')))
+            for row in df:
+                val = row.get('value')
+                ts = str(row.get('start_date', ''))
                 if val:
                     readings.append({"time": ts, "bpm": round(float(val))})
             
@@ -142,16 +140,9 @@ def fetch_calendar_data(client):
             end = start + timedelta(days=1)
             events = client.calendar_events(start.isoformat(), end.isoformat())
             event_list = []
-            if hasattr(events, 'iterrows'):
-                for _, row in events.iterrows():
-                    title = str(row.get('title', row.get('summary', '')))
-                    start_time = str(row.get('start_time', row.get('start', '')))
-                    # Basic heuristic for "real" meetings - you may want to customize this
-                    is_real = bool(title and not any(word in title.lower() for word in ['block', 'focus', 'break']))
-                    event_list.append({"title": title, "start": start_time, "real": is_real})
-            elif hasattr(events, '__len__'):
+            if isinstance(events, list):
                 for e in events:
-                    if hasattr(e, 'get'):
+                    if isinstance(e, dict):
                         title = e.get('title', e.get('summary', ''))
                         is_real = bool(title and not any(word in title.lower() for word in ['block', 'focus', 'break']))
                         event_list.append({"title": title, "start": str(e.get('start_time', e.get('start', ''))), "real": is_real})
@@ -173,27 +164,26 @@ def fetch_location_data(client):
         # Yesterday evening through this morning
         start = datetime(today.year, today.month, today.day, tzinfo=_user_tz()) - timedelta(hours=14)
         end = datetime(today.year, today.month, today.day, tzinfo=_user_tz()) + timedelta(hours=12)
-        
-        loc = client.metric_samples(start.isoformat(), end.isoformat(), "LocationSample")
-        if hasattr(loc, 'iterrows') and len(loc) > 0:
-            # Get the most common location (where they slept)
-            lats = [float(row.get('latitude', row.get('value', 0))) for _, row in loc.iterrows() if row.get('latitude') or row.get('value')]
-            lons = [float(row.get('longitude', 0)) for _, row in loc.iterrows() if row.get('longitude')]
+
+        loc = client.apple_location_visits(start.isoformat(), end.isoformat())
+        if isinstance(loc, list) and len(loc) > 0:
+            lats = [float(v['latitude_degrees']) for v in loc if v.get('latitude_degrees') is not None]
+            lons = [float(v['longitude_degrees']) for v in loc if v.get('longitude_degrees') is not None]
             if lats and lons:
                 return {"lat": round(sum(lats)/len(lats), 4), "lon": round(sum(lons)/len(lons), 4), "samples": len(lats)}
     except Exception as e:
         logger.debug(f"Location fetch failed: {e}")
-    
+
     # Try get_user_info for timezone-based location hint
     try:
         user_info = client.get_user_info()
-        if hasattr(user_info, 'get'):
+        if isinstance(user_info, dict):
             tz = user_info.get('timezone', '')
             if tz:
                 return {"timezone": tz, "inferred": True}
-    except:
+    except Exception:
         pass
-    
+
     return None
 
 

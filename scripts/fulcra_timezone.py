@@ -26,11 +26,12 @@ _tz_instance = None  # in-memory cache for the session
 def _get_fulcra_client():
     """Get authenticated Fulcra API client (standalone, no circular imports)."""
     from fulcra_api.core import FulcraAPI
+    from datetime import timedelta
     api = FulcraAPI()
     token_path = Path.home() / '.config' / 'fulcra' / 'token.json'
     td = json.loads(token_path.read_text())
-    api.set_cached_access_token(td['access_token'])
-    api.set_cached_refresh_token(td['refresh_token'])
+    api.fulcra_cached_access_token = td['access_token']
+    api.fulcra_cached_access_token_expiration = datetime.now(timezone.utc) + timedelta(hours=1)
     return api
 
 
