@@ -1,8 +1,8 @@
 ---
 name: fulcra-context
-description: Access your human's personal context data (biometrics, sleep, activity, calendar, location) via the Fulcra Life API and MCP server. Requires human's Fulcra account + OAuth2 consent.
+description: Access your human's personal context data (biometrics, sleep, activity, calendar, location) via the Fulcra Life API and MCP server. NOW SUPPORTS ALL 188 FULCRA METRICS with comprehensive health analysis. Requires human's Fulcra account + OAuth2 consent.
 homepage: https://fulcradynamics.com
-metadata: {"openclaw":{"emoji":"🫀","requires":{"bins":["curl"]},"primaryEnv":"FULCRA_ACCESS_TOKEN"}}
+metadata: {"openclaw":{"emoji":"🫀","requires":{"bins":["curl"]},"primaryEnv":"FULCRA_ACCESS_TOKEN","version":"2026.04.10"}}
 ---
 
 # Fulcra Context — Personal Data for AI Partners
@@ -194,17 +194,213 @@ for metric in catalog:
     print(metric.get('name'), '-', metric.get('description'))
 ```
 
-## Key Metrics
+## Comprehensive Metrics Support (188 Total)
 
+The fulcra-context skill now supports **ALL 188 metrics** available in the Fulcra API catalog, organized into meaningful categories:
+
+### 🫀 Cardiovascular (16 metrics)
+| Metric | What It Tells You |
+|--------|-------------------|
+| HeartRate | Current stress/activity level |
+| RestingHeartRate | Baseline cardiovascular fitness |
+| HeartRateVariabilitySDNN | Recovery and autonomic nervous system state |
+| BloodPressureSystolic | Upper blood pressure reading |
+| BloodPressureDiastolic | Lower blood pressure reading |
+| PeripheralPerfusionIndex | Circulation efficiency |
+| AFibBurden | Atrial fibrillation monitoring |
+| HighHeartRateEvent, LowHeartRateEvent | Cardiac event detection |
+| IrregularHeartRhythmEvent | Arrhythmia detection |
+| WalkingHeartRate | Exercise response |
+| HeartRateRecoveryOneMinute | Post-exercise recovery |
+
+### 🫁 Respiratory (11 metrics)
+| Metric | What It Tells You |
+|--------|-------------------|
+| RespiratoryRate | Breathing rate (breaths per minute) |
+| BloodOxygenSaturation | Blood oxygen levels |
+| PeakExpiratoryFlowRate | Lung function capacity |
+| ForcedExpiratoryVolumeOneSecond | Detailed lung function |
+| ForcedVitalCapacity | Maximum breathing capacity |
+| SleepApneaEvent | Sleep breathing disruptions |
+| SleepingBreathingDisturbances | Overall sleep respiratory health |
+| InhalerUse | Respiratory medication tracking |
+
+### 😴 Sleep (6 metrics)
 | Metric | What It Tells You |
 |--------|-------------------|
 | SleepStage | Sleep quality — REM, Deep, Light, Awake |
-| HeartRate | Current stress/activity level |
-| HRV | Recovery and autonomic nervous system state |
-| StepCount | Activity level throughout the day |
-| ActiveCaloriesBurned | Exercise intensity |
-| RespiratoryRate | Baseline health indicator |
-| BloodOxygen | Wellness check |
+| SleepApneaEvent | Breathing interruptions during sleep |
+| SleepingBreathingDisturbances | Overall sleep respiratory patterns |
+| SleepingWristTemperature | Body temperature regulation during sleep |
+| SleepChanges | Sleep pattern disruptions |
+
+### 🏃 Activity & Exercise (13 metrics)
+| Metric | What It Tells You |
+|--------|-------------------|
+| StepCount | Daily movement and activity level |
+| ActiveCaloriesBurned | Exercise intensity and energy expenditure |
+| BasalCaloriesBurned | Resting metabolic rate |
+| StairFlightsClimbed | Vertical activity and leg strength |
+| AppleWatchExerciseTime | Structured exercise duration |
+| AppleWatchMoveTime | Active movement minutes |
+| AppleWatchStandTime | Anti-sedentary behavior |
+| PhysicalEffort | Energy expenditure rate |
+| WorkoutEffortScore | Exercise intensity scoring |
+| VO2Max | Aerobic fitness capacity |
+| SixMinuteWalkDistance | Cardiovascular endurance test |
+
+### 🚶 Movement Analysis (15 metrics)
+| Metric | What It Tells You |
+|--------|-------------------|
+| WalkingSpeed | Gait velocity and mobility |
+| WalkingAsymmetry | Balance and gait symmetry |
+| WalkingDoubleSupport | Gait stability indicator |
+| WalkingSteadiness | Fall risk assessment |
+| WalkingStrideLength | Gait efficiency |
+| RunningSpeed, RunningPower | Running performance |
+| RunningGroundContactTime | Running efficiency |
+| RunningStrideLength | Running biomechanics |
+| CyclingSpeed, CyclingCadence, CyclingPower | Cycling performance |
+
+### 📏 Body Measurements (8 metrics)
+| Metric | What It Tells You |
+|--------|-------------------|
+| Weight | Body mass tracking |
+| Height | Growth monitoring |
+| BodyMassIndex | Weight-to-height ratio |
+| BodyFatPercentage | Body composition |
+| LeanBodyMass | Muscle mass tracking |
+| WaistCircumference | Metabolic health indicator |
+| BodyTemperature | Core body temperature |
+| BasalBodyTemperature | Fertility and metabolic tracking |
+
+### 🍎 Nutrition (23 metrics)
+| Metric | What It Tells You |
+|--------|-------------------|
+| CaloriesConsumed | Daily energy intake |
+| DietaryCarbohydratesConsumed | Carb intake tracking |
+| DietaryProteinConsumed | Protein intake monitoring |
+| TotalFatConsumed | Fat consumption |
+| DietaryFiberConsumed | Digestive health tracking |
+| DietaryWaterConsumed | Hydration monitoring |
+| DietaryCaffeineConsumed | Stimulant intake |
+| AlcoholicDrinksConsumed | Alcohol consumption |
+| Plus 15 additional micronutrients... |
+
+### 💊 Vitamins & Minerals (26 metrics)
+| Category | Metrics Available |
+|----------|-------------------|
+| Vitamins | A, B6, B12, C, D, E, K, Biotin, Folate, Niacin, etc. |
+| Minerals | Calcium, Iron, Magnesium, Potassium, Zinc, etc. |
+| Trace Elements | Chromium, Copper, Iodine, Manganese, etc. |
+
+### 🩸 Blood & Lab Values (3 metrics)
+| Metric | What It Tells You |
+|--------|-------------------|
+| BloodGlucose | Blood sugar monitoring |
+| BloodAlcoholContent | Alcohol levels |
+| InsulinUnitsDelivered | Diabetes management |
+
+### 🤰 Reproductive Health (15 metrics)
+| Metric | What It Tells You |
+|--------|-------------------|
+| MenstrualFlow | Cycle tracking |
+| OvulationTestResult | Fertility monitoring |
+| PregnancyTestResult | Pregnancy detection |
+| CervicalMucusQuality | Fertility indicators |
+| ContraceptiveUse | Birth control tracking |
+| Plus 10 additional reproductive metrics... |
+
+### 🤒 Symptoms & Events (30 metrics)
+| Category | Symptoms Tracked |
+|----------|------------------|
+| Pain | Headache, back pain, abdominal cramps, etc. |
+| Respiratory | Coughing, wheezing, shortness of breath |
+| Digestive | Nausea, heartburn, constipation, etc. |
+| Neurological | Dizziness, fainting, memory lapse |
+| General | Fatigue, fever, chills, etc. |
+
+### 🌍 Environmental (9 metrics)
+| Metric | What It Tells You |
+|--------|-------------------|
+| EnvironmentalAudioLevel | Noise exposure monitoring |
+| TimeInDaylight | Light exposure tracking |
+| UVExposure | Sun exposure monitoring |
+| WaterTemperature | Swimming/bathing conditions |
+| UnderwaterDepth | Diving activity tracking |
+
+### 🧘 Wellness Events (7 metrics)
+| Metric | What It Tells You |
+|--------|-------------------|
+| HandwashingEvent | Hygiene habit tracking |
+| ToothbrushingEvent | Dental hygiene monitoring |
+| MindfulSession | Meditation and mindfulness |
+| MoodChanges | Emotional state tracking |
+| AppetiteChange | Eating behavior patterns |
+
+### 🏊 Sports-Specific (13 metrics)
+| Activity | Metrics Available |
+|----------|-------------------|
+| Swimming | Stroke count, distance, underwater depth |
+| Rowing | Speed, distance, power |
+| Cycling | Speed, cadence, power, functional threshold |
+| Running | Speed, power, ground contact, stride length |
+| Winter Sports | Cross-country skiing, downhill sports |
+| Plus others... |
+
+## Usage Examples
+
+### Get Comprehensive Wellness Snapshot
+```python
+from fulcra_comprehensive_metrics import get_wellness_snapshot
+
+# Get key health metrics from last 24 hours
+data = get_wellness_snapshot(days=1)
+
+# This includes: HeartRate, RestingHeartRate, HRV, RespiratoryRate, 
+# BloodOxygenSaturation, StepCount, ActiveCaloriesBurned, SleepStage, BodyTemperature
+```
+
+### Get Category-Specific Metrics
+```python
+from fulcra_comprehensive_metrics import get_cardiovascular_metrics, get_respiratory_metrics
+
+# All 16 cardiovascular metrics
+cardio_data = get_cardiovascular_metrics(days=7)
+
+# All 11 respiratory metrics  
+resp_data = get_respiratory_metrics(days=7)
+```
+
+### Get Specific Metrics (Original Request)
+```python
+from fulcra_comprehensive_metrics import get_metric_data
+
+# The originally requested metrics
+specific_metrics = ['ActiveCaloriesBurned', 'RespiratoryRate', 'BloodOxygenSaturation']
+data = get_metric_data(specific_metrics, days=7)
+
+# Returns structured data with analysis
+for metric, info in data.items():
+    print(f"{metric}: {len(info['data'])} samples")
+    print(f"  Category: {info['category']}")
+    print(f"  Type: {info['metric_type']}")
+```
+
+### Comprehensive Health Dashboard
+```python
+from comprehensive_health_dashboard import ComprehensiveHealthDashboard
+
+# Full health analysis with all 188 metrics
+dashboard = ComprehensiveHealthDashboard(days=30)
+dashboard.collect_all_metrics()
+dashboard.analyze_health_patterns()
+report = dashboard.generate_comprehensive_report()
+
+# Export to files
+dashboard.export_to_json()
+dashboard.export_to_csv()
+```
 
 ## Integration Patterns
 

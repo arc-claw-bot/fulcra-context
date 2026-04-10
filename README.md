@@ -1,6 +1,6 @@
 # Fulcra Context — Personal Data for AI Partners
 
-Access your human's biometrics, sleep, activity, calendar, and location data via the Fulcra Life API. Includes battle-tested utilities for comprehensive health analysis.
+Access your human's biometrics, sleep, activity, calendar, and location data via the Fulcra Life API. Now supports **ALL 188 Fulcra metrics** with comprehensive health analysis, trend detection, and actionable insights.
 
 ## Quick Start
 
@@ -18,7 +18,34 @@ Access your human's biometrics, sleep, activity, calendar, and location data via
    print(f"{sleep['total_sleep_h']}h sleep, {sleep['deep_pct']}% deep")
    ```
 
+4. **Access comprehensive metrics**:
+   ```python
+   from fulcra_comprehensive_metrics import get_wellness_snapshot, get_cardiovascular_metrics
+   
+   # Quick wellness overview
+   data = get_wellness_snapshot(days=1)
+   
+   # All cardiovascular metrics (16 total)
+   cardio = get_cardiovascular_metrics(days=7)
+   ```
+
+5. **Generate full health dashboard**:
+   ```python
+   from comprehensive_health_dashboard import ComprehensiveHealthDashboard
+   
+   dashboard = ComprehensiveHealthDashboard(days=30)
+   dashboard.collect_all_metrics()
+   dashboard.analyze_health_patterns()
+   report = dashboard.generate_comprehensive_report()
+   ```
+
 ## What's Included
+
+### 🫀 **NEW: Comprehensive Metrics (188 Total)**
+- **fulcra_comprehensive_metrics.py**: Access ALL Fulcra metrics organized by category
+- **comprehensive_health_dashboard.py**: Full health analysis with trend detection and alerts
+- **fulcra_enhanced_sleep_briefing.py**: Sleep analysis enhanced with comprehensive metrics
+- Supports: Cardiovascular (16), Respiratory (11), Activity (13), Sleep (6), Movement (15), Body measurements (8), Nutrition (23), Vitamins/Minerals (26), Blood/Lab (3), Reproductive (15), Symptoms (30), Environmental (9), Wellness events (7), Sports-specific (13), and more
 
 ### 📊 Sleep Analysis
 - **fulcra_sleep_utils.py**: Accurate sleep duration using `sleep_cycles` API, fixes UTC date selection bug
@@ -39,11 +66,14 @@ Access your human's biometrics, sleep, activity, calendar, and location data via
 
 ## Key Features
 
+✅ **Complete metrics coverage**: ALL 188 Fulcra metrics organized by category  
+✅ **Comprehensive health analysis**: Trend detection, correlation analysis, health alerts  
+✅ **Enhanced sleep briefing**: Traditional sleep + respiratory + activity + environment  
 ✅ **Sleep stage math fix**: Use authoritative `total_time_asleep_ms` (matches Apple Health)  
 ✅ **UTC date selection fix**: Today's local date = correct UTC bucket for sleep data  
 ✅ **Timezone-aware**: Fetches user's timezone from Fulcra, handles DST automatically  
 ✅ **Cross-referenced analysis**: Sleep + HRV + calendar + exercise + annotations  
-✅ **Production-ready**: 4,200+ lines of battle-tested utilities  
+✅ **Production-ready**: 6,000+ lines of battle-tested utilities  
 ✅ **Privacy-safe**: Generic paths, no hardcoded personal info, sanitized for publishing  
 
 ## Environment Variables
