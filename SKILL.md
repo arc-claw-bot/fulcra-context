@@ -73,6 +73,20 @@ Authenticate once with the CLI:
 fulcra-api auth login
 ```
 
+#### Remote/chat auth
+
+Agents often run on a server while the user is in Discord, Telegram, Signal, or another remote chat. Do not assume the browser on the agent host is the user's browser.
+
+When `fulcra-api auth login` prints a device authorization URL and user code:
+
+1. Keep the CLI process running so it can poll for completion.
+2. Send the short-lived device URL and code to the intended user in the current trusted chat.
+3. Do not send access tokens, refresh tokens, credential files, raw private records, or direct capability URLs.
+4. The user opens the URL on any device, confirms the displayed code, and approves access.
+5. Verify completion with a non-token command such as `fulcra-api user-info`.
+
+If the CLI also opens a browser on the agent host, ignore that local browser unless the user is actually on that machine. The device URL/code flow is the portable path for remote agents.
+
 This creates `~/.config/fulcra/credentials.json`. The CLI refreshes access tokens as needed. The beta CLI currently exposes these JSON-output commands:
 
 ```bash
@@ -110,7 +124,7 @@ catalog = api.metrics_catalog()
 
 ### Authentication Boundary
 
-This public skill does not ship OAuth device-flow or token-printing helpers. Authenticate with Fulcra's CLI or hosted MCP server, then let the scripts read through that already-authorized interface. CLI credentials are managed by Fulcra tooling in the user's home directory.
+This public skill does not ship token-printing helpers for chat. Authenticate with Fulcra's CLI or hosted MCP server, then let the scripts read through that already-authorized interface. CLI credentials are managed by Fulcra tooling in the user's home directory.
 
 ## Quick Commands
 
