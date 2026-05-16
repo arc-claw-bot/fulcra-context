@@ -75,12 +75,12 @@ fulcra-api auth login
 
 #### Remote/chat auth
 
-Agents often run on a server while the user is in Discord, Telegram, Signal, or another remote chat. Do not assume the browser on the agent host is the user's browser.
+Agents often run on a server while the user is interacting through a separate channel. Do not assume the browser on the agent host is the user's browser.
 
 When `fulcra-api auth login` prints a device authorization URL and user code:
 
 1. Keep the CLI process running so it can poll for completion.
-2. Send the short-lived device URL and code to the intended user in the current trusted chat.
+2. Send the short-lived device URL and code to the intended user through the active trusted user channel.
 3. Do not send access tokens, refresh tokens, credential files, raw private records, or direct capability URLs.
 4. The user opens the URL on any device, confirms the displayed code, and approves access.
 5. Verify completion with a non-token command such as `fulcra-api user-info`.

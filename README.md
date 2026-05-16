@@ -10,7 +10,7 @@ Fulcra gives agents and their humans scoped, secure access to read and write rea
    ```bash
    fulcra-api auth login
    ```
-   For remote chat agents, copy the printed device URL and code to the intended user in Discord, Telegram, Signal, or the active trusted channel. The user can approve from any browser while the CLI keeps polling on the agent host. Never send access tokens or credential files.
+   For remote agents, copy the printed device URL and code to the intended user through the active trusted user channel. The user can approve from any browser while the CLI keeps polling on the agent host. Never send access tokens or credential files.
 
 3. **Check last night's sleep**:
    ```python
