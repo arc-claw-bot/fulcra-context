@@ -179,20 +179,10 @@ METRIC_TYPES = {
 
 
 def get_fulcra_client():
-    """Get authenticated Fulcra API client."""
-    from fulcra_api.core import FulcraAPI
-    api = FulcraAPI()
-    
-    token_path = os.path.expanduser('~/.config/fulcra/token.json')
-    try:
-        with open(token_path) as f:
-            token_data = json.load(f)
-        api.fulcra_cached_access_token = token_data['access_token']
-        api.fulcra_cached_access_token_expiration = datetime.now() + timedelta(hours=1)
-        return api
-    except Exception as e:
-        logger.error(f"Failed to load Fulcra token: {e}")
-        raise
+    """Get the shared CLI-first Fulcra service."""
+    from fulcra_data_service import get_service
+
+    return get_service()
 
 
 def get_metric_data(metric_names, days=7, start_date=None, end_date=None):

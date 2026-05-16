@@ -1,29 +1,22 @@
 #!/usr/bin/env python3
-"""Fetch upcoming calendar events from Fulcra API."""
-import json, os, sys, argparse
+"""Fetch upcoming calendar events from Fulcra through the CLI-first service."""
+import json, sys, argparse
 from datetime import datetime, timezone, timedelta
+from pathlib import Path
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(SCRIPT_DIR))
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--hours", type=int, default=2)
 args = parser.parse_args()
 
-TOKEN_PATH = os.path.expanduser("~/.config/fulcra/token.json")
 try:
-    with open(TOKEN_PATH) as f:
-        token_data = json.load(f)
-except Exception as e:
-    print(json.dumps({"error": str(e)}))
-    sys.exit(1)
-
-try:
-    from fulcra_api.core import FulcraAPI
-    api = FulcraAPI()
-    api.fulcra_cached_access_token = token_data["access_token"]
-    api.fulcra_cached_access_token_expiration = datetime.now(timezone.utc) + timedelta(hours=1)
+    from fulcra_data_service import get_service
     
     now = datetime.now(timezone.utc)
     end = now + timedelta(hours=args.hours)
-    events = api.calendar_events(now.isoformat(), end.isoformat())
+    events = get_service().get_calendar_events(now.isoformat(), end.isoformat())
     print(json.dumps(events or [], indent=2, default=str))
 except Exception as e:
     print(json.dumps({"error": str(e)}))

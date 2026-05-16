@@ -4,9 +4,15 @@ Run from cron every 2-4 hours. Writes state to data/fulcra-watchdog-state.json.
 Exits 0 = data OK or alert already sent. Exits 1 = STALE, needs escalation."""
 
 import json, datetime, sys, os
+from pathlib import Path
 
-STATE_FILE = os.path.expanduser("~/.openclaw/data/fulcra-watchdog-state.json")
-TOKEN_FILE = os.path.expanduser("~/.config/fulcra/token.json")
+SCRIPT_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(SCRIPT_DIR))
+
+STATE_FILE = os.environ.get(
+    "FULCRA_WATCHDOG_STATE_FILE",
+    str(Path(os.environ.get("FULCRA_OUTPUT_DIR", str(Path.home() / ".fulcra-analysis"))) / "fulcra-watchdog-state.json"),
+)
 STALE_THRESHOLD_HOURS = 12
 
 def load_state():
@@ -22,14 +28,7 @@ def save_state(state):
         json.dump(state, f, indent=2)
 
 def main():
-    from fulcra_api.core import FulcraAPI
-
-    token_data = json.load(open(TOKEN_FILE))
-    api = FulcraAPI()
-    api.fulcra_cached_access_token = token_data["access_token"]
-    api.fulcra_cached_access_token_expiration = (
-        datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
-    )
+    from fulcra_data_service import get_service
 
     now = datetime.datetime.now(datetime.timezone.utc)
     state = load_state()
@@ -37,7 +36,7 @@ def main():
     # Check last 24h of HeartRate as the canary metric
     start = (now - datetime.timedelta(hours=24)).isoformat()
     try:
-        hr_samples = api.metric_samples(start, now.isoformat(), "HeartRate")
+        hr_samples = get_service().get_metric_samples(start, now.isoformat(), "HeartRate")
     except Exception as e:
         print(f"API ERROR: {e}")
         # API error is also worth escalating if persistent

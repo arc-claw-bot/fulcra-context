@@ -40,7 +40,7 @@ from fulcra_timezone import now_local, today_local, get_user_tz
 logger = logging.getLogger(__name__)
 
 # Output configuration
-OUTPUT_DIR = Path(os.environ.get('FULCRA_OUTPUT_DIR', Path.home() / '.openclaw/data/fulcra-analysis'))
+OUTPUT_DIR = Path(os.environ.get('FULCRA_OUTPUT_DIR', Path.home() / '.fulcra-context' / 'analysis'))
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # Health score thresholds and ranges (can be customized per user)

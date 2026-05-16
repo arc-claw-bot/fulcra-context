@@ -1,18 +1,18 @@
 ---
 name: fulcra-context
-description: Access your human's personal context data (biometrics, sleep, activity, calendar, location) via the Fulcra Life API and MCP server. NOW SUPPORTS ALL 188 FULCRA METRICS with comprehensive health analysis. Requires human's Fulcra account + OAuth2 consent.
+description: Access user-consented Fulcra context data including biometrics, sleep, activity, calendar, location, and the full Fulcra metric catalog via the Fulcra Life API, MCP server, and CLI. Use for read/context/analysis workflows; use the companion fulcra-annotations skill for creating or recording annotation events.
 homepage: https://fulcradynamics.com
-metadata: {"openclaw":{"emoji":"🫀","requires":{"bins":["curl"]},"primaryEnv":"FULCRA_ACCESS_TOKEN","version":"2026.04.10"}}
+metadata: {"openclaw":{"emoji":"🫀","requires":{"bins":["python3","uv","jq"]},"version":"2026.05.16"}}
 ---
 
-# Fulcra Context — Personal Data for AI Partners
+# Fulcra Context
 
-Give your agent situational awareness. With your human's consent, access their biometrics, sleep, activity, location, and calendar data from the Fulcra Life API.
+Fulcra gives agents and their humans scoped, secure access to read and write real-world context and shared human/agent memory: attention, events, location, calendar, health, wearables, and other streams. This skill is the read/context side: biometrics, sleep, activity, location, calendar, and health metrics. Use the companion `fulcra-annotations` skill when an agent needs to write events or memories back.
 
 ## What This Enables
 
-With Fulcra Context, you can:
-- Know how your human slept → adjust morning briefing intensity
+With Fulcra Context, agents can:
+- Know how a user slept → adjust briefing intensity
 - See heart rate / HRV trends → detect stress, suggest breaks
 - Check location → context-aware suggestions (home vs. office vs. traveling)
 - Read calendar → proactive meeting prep, schedule awareness
@@ -20,10 +20,10 @@ With Fulcra Context, you can:
 
 ## Privacy Model
 
-- **OAuth2 per-user** — your human controls exactly what data you see
-- **Their data stays theirs** — Fulcra stores it, you get read access only
+- **OAuth2 per-user** — the user controls exactly what data the agent can access
+- **User data stays user-owned** — Fulcra stores it, the agent gets delegated access only
 - **Consent is revocable** — they can disconnect anytime
-- **NEVER share your human's Fulcra data publicly without explicit permission**
+- **NEVER share Fulcra data publicly without explicit permission**
 
 ## Setup
 
@@ -31,7 +31,7 @@ With Fulcra Context, you can:
 
 Use Fulcra's hosted MCP server at `https://mcp.fulcradynamics.com/mcp` (Streamable HTTP transport, OAuth2 auth).
 
-Your human needs a Fulcra account (free via the [Context iOS app](https://apps.apple.com/app/id1633037434) or [Portal](https://portal.fulcradynamics.com/)).
+The user needs a Fulcra account via the [Context iOS app](https://apps.apple.com/app/id1633037434) or [Portal](https://portal.fulcradynamics.com/).
 
 **Claude Desktop config** (claude_desktop_config.json):
 ```json
@@ -51,7 +51,7 @@ Your human needs a Fulcra account (free via the [Context iOS app](https://apps.a
   "mcpServers": {
     "fulcra_context": {
       "command": "uvx",
-      "args": ["fulcra-context-mcp@latest"]
+      "args": ["fulcra-context-mcp"]
     }
   }
 }
@@ -59,115 +59,90 @@ Your human needs a Fulcra account (free via the [Context iOS app](https://apps.a
 
 Also tested with: Goose, Windsurf, VS Code. Open source: [github.com/fulcradynamics/fulcra-context-mcp](https://github.com/fulcradynamics/fulcra-context-mcp)
 
-### Option 2: Direct API Access
+### Option 2: Fulcra CLI (Beta, Preferred for Automation)
 
-1. Your human creates a Fulcra account
-2. They generate an access token via the [Python client](https://github.com/fulcradynamics/fulcra-api-python) or Portal
-3. Store the token: `skills.entries.fulcra-context.apiKey` in openclaw.json
-
-### Option 3: Python Client (Tested & Proven)
+The Fulcra CLI is the preferred interface for new skills, scheduled jobs, and repeatable workflows. It requires Python 3.11+, `uv`, and `jq`.
 
 ```bash
-pip3 install fulcra-api
+fulcra-api --help
 ```
 
-```python
-from fulcra_api.core import FulcraAPI
-
-api = FulcraAPI()
-api.authorize()  # Opens device flow — human visits URL and logs in
-
-# Now you have access:
-sleep = api.metric_samples(start, end, "SleepStage")
-hr = api.metric_samples(start, end, "HeartRate")
-events = api.calendar_events(start, end)
-catalog = api.metrics_catalog()
-```
-
-Save the token for automation:
-```python
-import json
-import base64
-
-# Extract user_id from JWT (more reliable than API call)
-def extract_user_id(access_token):
-    encoded = access_token.split('.')[1]
-    padding = 4 - len(encoded) % 4
-    if padding != 4:
-        encoded += '=' * padding
-    payload = json.loads(base64.urlsafe_b64decode(encoded))
-    return payload.get("sub")
-
-token_data = {
-    "access_token": api.fulcra_cached_access_token,
-    "expiration": api.fulcra_cached_access_token_expiration.isoformat(),
-    "user_id": extract_user_id(api.fulcra_cached_access_token),
-    "refresh_token": getattr(api, 'fulcra_cached_refresh_token', None)
-}
-with open(os.path.expanduser("~/.config/fulcra/token.json"), "w") as f:
-    json.dump(token_data, f, indent=2)
-```
-
-**Important:** The `user_id` is extracted from the JWT's `sub` claim. This is required for calendar and some other endpoints. The auth script (`fulcra_auth.py`) handles this automatically.
-
-Token expires in ~24h. Use the built-in token manager for automatic refresh (see below).
-
-### Token Lifecycle Management
-
-The skill includes `scripts/fulcra_auth.py` which handles the full OAuth2 lifecycle — including **refresh tokens** so your human only authorizes once.
+Authenticate once with the CLI:
 
 ```bash
-# First-time setup (interactive — human approves via browser)
-python3 scripts/fulcra_auth.py authorize
-
-# Refresh token before expiry (automatic, no human needed)
-python3 scripts/fulcra_auth.py refresh
-
-# Check token status
-python3 scripts/fulcra_auth.py status
-
-# Get current access token (auto-refreshes if needed, for piping)
-export FULCRA_ACCESS_TOKEN=$(python3 scripts/fulcra_auth.py token)
+fulcra-api auth login
 ```
 
-**How it works:**
-- `authorize` runs the Auth0 device flow and saves both the access token AND refresh token
-- `refresh` uses the saved refresh token to get a new access token — no human interaction
-- `token` prints the access token (auto-refreshing if expired) — perfect for cron jobs and scripts
+This creates `~/.config/fulcra/credentials.json`. The CLI refreshes access tokens as needed. The beta CLI currently exposes these JSON-output commands:
 
-**Set up a cron job to keep the token fresh:**
-
-For OpenClaw agents, add a cron job that refreshes the token every 12 hours:
+```bash
+fulcra-api catalog
+fulcra-api get-records HeartRate "1 day"
+fulcra-api metric-time-series HeartRate "1 day"
+fulcra-api sleep-stages "12 hours"
+fulcra-api sleep-cycles "1 week"
+fulcra-api calendar-events "1 day"
+fulcra-api apple-workouts "1 week"
+fulcra-api location-at-time "2026-05-05T12:00:00Z"
+fulcra-api user-info
 ```
-python3 /path/to/skills/fulcra-context/scripts/fulcra_auth.py refresh
-```
 
-Token data is stored at `~/.config/fulcra/token.json` (permissions restricted to owner).
+For automation, use the CLI-first adapter/service layer rather than hand-rolling `subprocess` calls. Set `FULCRA_CLI_COMMAND` only when the `fulcra-api` binary is not on PATH.
 
-## Quick Commands
+### Option 3: Python Service Layer
 
-**Recommended:** Use the Python client for reliable data access. The REST API endpoints vary by metric type.
-
-### Check sleep (last night)
+Use a shared service wrapper for skill scripts and scheduled workflows. It should prefer CLI credentials, normalize CLI JSON/JSONL output, and keep direct token handling inside the token manager fallback.
 
 ```python
 from datetime import datetime, timezone, timedelta
-from fulcra_api.core import FulcraAPI
+from fulcra_data_service import get_service
 
-api = FulcraAPI()
-# Load token (see Token Lifecycle section)
+api = get_service()
+now = datetime.now(timezone.utc)
+start = (now - timedelta(hours=12)).isoformat()
+end = now.isoformat()
+
+sleep = api.get_metric_samples(start, end, "SleepStage")
+hr = api.get_metric_samples(start, end, "HeartRate")
+events = api.get_calendar_events(start, end)
+catalog = api.metrics_catalog()
+```
+
+### Authentication Boundary
+
+This public skill does not ship OAuth device-flow or token-printing helpers. Authenticate with Fulcra's CLI or hosted MCP server, then let the scripts read through that already-authorized interface. CLI credentials are managed by Fulcra tooling in the user's home directory.
+
+## Quick Commands
+
+**Recommended:** Use the Fulcra CLI for new workflows, with the Python service layer as fallback for existing scripts.
+
+### Check sleep (last night)
+
+```bash
+fulcra-api sleep-stages "12 hours" | jq .
+```
+
+```python
+from datetime import datetime, timezone, timedelta
+from fulcra_data_service import get_service
+
+api = get_service()
 now = datetime.now(timezone.utc)
 start = (now - timedelta(hours=14)).isoformat()
 end = now.isoformat()
 
-sleep = api.metric_samples(start, end, "SleepStage")
+sleep = api.get_metric_samples(start, end, "SleepStage")
 # Stage values: 0=InBed, 1=Awake, 2=Core, 3=Deep, 4=REM
 ```
 
 ### Check heart rate (recent)
 
+```bash
+fulcra-api get-records HeartRate "2 hours" | jq .
+```
+
 ```python
-hr = api.metric_samples(
+hr = api.get_metric_samples(
     (now - timedelta(hours=2)).isoformat(),
     now.isoformat(),
     "HeartRate"
@@ -178,10 +153,14 @@ avg_hr = sum(values) / len(values) if values else None
 
 ### Check today's calendar
 
+```bash
+fulcra-api calendar-events "1 day" | jq .
+```
+
 ```python
 day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
 day_end = day_start + timedelta(hours=24)
-events = api.calendar_events(day_start.isoformat(), day_end.isoformat())
+events = api.get_calendar_events(day_start.isoformat(), day_end.isoformat())
 for e in events:
     print(f"{e.get('title')} — {e.get('start_time')}")
 ```
@@ -416,40 +395,17 @@ After intense workout or poor sleep → suggest lighter schedule, remind about h
 ### Travel Awareness
 Location changes → adjust timezone handling, suggest local info, modify schedule expectations.
 
-## Demo Mode
+## Public Sharing and Synthetic Data
 
-For public demos (VC pitches, livestreams, conferences), enable demo mode to swap in synthetic calendar and location data while keeping real biometrics.
+Most users should run this skill against their own consented Fulcra account, not a demo mode.
 
-### Activation
+If an agent needs sample output for documentation, tests, screenshots, videos, or public sharing, generate a separate synthetic fixture and clearly label it as synthetic. Do not mix real biometrics with fake calendar or location data unless the user explicitly asks for that behavior.
 
-```bash
-# Environment variable (recommended for persistent config)
-export FULCRA_DEMO_MODE=true
+Public-safe defaults:
 
-# Or pass --demo flag to collect_briefing_data.py
-python3 collect_briefing_data.py --demo
-```
-
-### What changes in demo mode
-
-| Data Type | Demo Mode | Normal Mode |
-|-----------|-----------|-------------|
-| Sleep, HR, HRV, Steps | ✅ Real data | ✅ Real data |
-| Calendar events | 🔄 Synthetic (rotating schedules) | ✅ Real data |
-| Location | 🔄 Synthetic (curated NYC spots) | ✅ Real data |
-| Weather | ✅ Real data | ✅ Real data |
-
-### Transparency
-
-- Output JSON includes `"demo_mode": true` at the top level
-- Calendar and location objects include `"demo_mode": true`
-- When presenting to humans, include a subtle "📍 Demo mode" indicator
-
-### What's safe to share publicly
-
-- ✅ Biometric trends, sleep quality, step counts, HRV — cleared for public
-- ✅ Synthetic calendar and location (demo mode) — designed for public display
-- ❌ NEVER share real location, real calendar events, or identifying data
+- Use synthetic data for public examples and documentation.
+- Do not publish real location, real calendar events, private notes, Magic Links, access tokens, or identifying data.
+- If a workflow exposes `FULCRA_DEMO_MODE` or `--demo`, treat it as a local testing helper, not the recommended public path.
 
 ## Battle-Tested Utilities
 
@@ -457,33 +413,39 @@ The skill includes production-ready utilities for comprehensive sleep and biomet
 
 ### Annotations API
 
-Track user-logged events and correlate with biometric data:
+Read and correlate existing user-logged events with biometric data.
+
+For creating annotation definitions or recording new annotation events, install and use the companion write-focused skill:
+
+<https://github.com/arc-claw-bot/fulcra-annotations-skill>
+
+Recommended boundary:
+
+- `fulcra-context`: read Fulcra context and analyze health/activity/calendar/location data.
+- `fulcra-annotations`: create annotation definitions and record user-approved events.
 
 ```python
 from fulcra_annotations import fetch_annotations
 
 data = fetch_annotations(days=7)
 # Returns structured data:
-# - Coffee timing and late consumption warnings
-# - Morning pills, evening medications adherence
-# - Elemind neurostim headband usage
-# - Subjective mood and sleep quality ratings
-# - Dream intensity, wake-up counts, nocturia
-# - Supplement dosages and timing
+# - User-logged events
+# - Subjective ratings
+# - Medication or supplement timing if the user records it
+# - Notes and tags suitable for correlation
 ```
 
 **Annotation Types:**
-- **Moment**: Coffee, pills, Elemind, semaglutide (timestamp events)
-- **Scale**: Mood, sleep quality, dream intensity (1-5 ratings)
-- **Numeric**: Wake-up count, nocturia frequency, supplement mg
+- **Moment**: timestamped events
+- **Scale**: subjective 1-5 ratings
+- **Numeric**: counts, dosages, or measurements
 - **Boolean**: Yes/no events (future-proofed)
 - **Duration**: Timed activities (future-proofed)
 
 **Key Correlations:**
-- Late coffee (after 2 PM) impacts deep sleep percentage
-- Elemind usage correlates with improved deep sleep metrics
-- Evening medication timing affects sleep onset
-- Subjective vs. objective sleep quality mismatches reveal insights
+- Timing of user-logged events vs. sleep, HRV, and activity trends
+- Subjective vs. objective sleep quality mismatches
+- Medication, supplement, caffeine, workout, or stress notes if the user chooses to record them
 
 ### Sleep Stage Math
 
@@ -527,16 +489,15 @@ local_dt = to_local(utc_datetime)
 - Automatic DST handling via Python's `ZoneInfo`
 - Fallback chain: API → cache → env var → America/New_York
 
-### Sleep Briefing Pipeline
+### Sleep Context Pipeline
 
-Generate comprehensive sleep analysis with cross-referenced data streams:
+Fetch sleep context primitives, then compose any user-facing briefing inside the agent runtime:
 
 ```python
-from fulcra_sleep_briefing import run
+from fulcra_sleep_utils import get_last_night_sleep, get_sleep_history
 
-result = run()  # Generates JSON + plain text briefing
-# Cross-references: sleep stages, HRV, RHR, calendar load,
-# exercise timing, coffee/medication logs, subjective ratings
+last_night = get_last_night_sleep()
+history = get_sleep_history(days=7)
 ```
 
 **Data Integration:**
@@ -546,10 +507,10 @@ result = run()  # Generates JSON + plain text briefing
 - Calendar meeting load (distinguishes real meetings from time blocks)
 - Exercise/walk detection from step count and walking speed
 - Location data for sleep context
-- Coffee timing, Elemind usage, evening medication adherence
+- User-recorded events such as caffeine, medication, supplement, workout, or stress notes
 - Subjective sleep quality vs. objective metrics
 
-**LLM Integration:** Uses configurable LLM endpoint (OpenClaw gateway by default) to generate human-readable analysis. Sanitized for public use — no personal references.
+**LLM boundary:** This public skill does not call LLM endpoints. If an agent turns Fulcra context into a written briefing, keep that model/provider choice inside the user-approved agent runtime.
 
 ### Data Staleness Detection
 
@@ -589,16 +550,11 @@ create_chart(sleep_data, "sleep-analysis.png")
 The utilities support flexible deployment via environment variables:
 
 ```bash
-# Data output directory (default: ~/.openclaw/data/fulcra-analysis)
+# Data output directory (choose an app-owned writable directory)
 export FULCRA_OUTPUT_DIR=/custom/path
 
-# LLM endpoint for briefing generation (default: OpenClaw gateway)
-export LLM_ENDPOINT=http://localhost:8080/v1/chat/completions
-export LLM_MODEL=gpt-4
-export LLM_API_TOKEN=your_token
-
-# Context directory for biometric theories/baselines
-export CONTEXT_DIR=~/.openclaw/memory/topics
+# Optional context directory for local baselines or hypotheses
+export CONTEXT_DIR=/custom/context/path
 
 # User timezone override (default: from Fulcra API)
 export OPENCLAW_TIMEZONE=America/New_York
@@ -609,12 +565,6 @@ export OPENCLAW_TIMEZONE=America/New_York
 ### Cron Automation
 
 ```bash
-# Refresh Fulcra token every 12 hours
-0 */12 * * * python3 scripts/fulcra_auth.py refresh
-
-# Generate sleep briefing every 2 hours (pre-computed)
-0 */2 * * * python3 scripts/fulcra_sleep_briefing.py
-
 # Data staleness check every 4 hours
 0 */4 * * * python3 scripts/fulcra_data_watchdog.py || echo "STALE DATA ALERT"
 ```
@@ -622,10 +572,10 @@ export OPENCLAW_TIMEZONE=America/New_York
 ### Integration with AI Agents
 
 ```python
-# Instant sleep response (pre-computed)
-with open('data/fulcra-analysis/sleep-briefing.txt') as f:
-    briefing = f.read()
-    # Already formatted, just send to user
+# Fetch raw context and compose in the agent runtime
+from fulcra_sleep_utils import get_last_night_sleep
+
+sleep = get_last_night_sleep()
 
 # Historical analysis
 history = get_sleep_history(days=30)

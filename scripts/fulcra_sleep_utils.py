@@ -7,12 +7,12 @@ Uses metric_samples('SleepStage') to get sleep data. Each sample has:
 Sessions are groups of samples with <= 60 min gaps between them.
 """
 
-import json
 import os
 import re
+import sys
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone, date
-from zoneinfo import ZoneInfo
+from pathlib import Path
 
 from fulcra_timezone import get_user_tz, now_local, today_local, to_local, format_local_time
 
@@ -26,14 +26,12 @@ STAGE_NAMES = {2: 'awake', 3: 'core', 4: 'deep', 5: 'rem'}
 
 
 def get_fulcra_client():
-    """Get authenticated Fulcra API client."""
-    from fulcra_api.core import FulcraAPI
-    api = FulcraAPI()
-    token_path = os.path.expanduser('~/.config/fulcra/token.json')
-    td = json.loads(open(token_path).read())
-    api.fulcra_cached_access_token = td['access_token']
-    api.fulcra_cached_access_token_expiration = datetime.now(timezone.utc) + timedelta(hours=1)
-    return api
+    """Get the shared CLI-first Fulcra service."""
+    script_dir = Path(__file__).resolve().parent
+    sys.path.insert(0, str(script_dir))
+    from fulcra_data_service import get_service
+
+    return get_service()
 
 
 def _parse_dt(ts_str):

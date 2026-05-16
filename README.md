@@ -1,6 +1,6 @@
-# Fulcra Context — Personal Data for AI Partners
+# Fulcra Context
 
-Access your human's biometrics, sleep, activity, calendar, and location data via the Fulcra Life API. Now supports **ALL 188 Fulcra metrics** with comprehensive health analysis, trend detection, and actionable insights.
+Fulcra gives agents and their humans scoped, secure access to read and write real-world context and shared human/agent memory: attention, events, location, calendar, health, wearables, and other streams. This skill is the read/context side via the Fulcra Life API, MCP server, and CLI. Use it for reusable agent integrations, and pair it with `fulcra-annotations` when an agent needs to write moments or values back.
 
 ## Quick Start
 
@@ -8,7 +8,7 @@ Access your human's biometrics, sleep, activity, calendar, and location data via
 
 2. **Authorize the agent**:
    ```bash
-   python3 scripts/fulcra_auth.py authorize
+   fulcra-api auth login
    ```
 
 3. **Check last night's sleep**:
@@ -29,7 +29,7 @@ Access your human's biometrics, sleep, activity, calendar, and location data via
    cardio = get_cardiovascular_metrics(days=7)
    ```
 
-5. **Generate full health dashboard**:
+5. **Generate a local health dashboard summary**:
    ```python
    from comprehensive_health_dashboard import ComprehensiveHealthDashboard
    
@@ -44,17 +44,19 @@ Access your human's biometrics, sleep, activity, calendar, and location data via
 ### 🫀 **NEW: Comprehensive Metrics (188 Total)**
 - **fulcra_comprehensive_metrics.py**: Access ALL Fulcra metrics organized by category
 - **comprehensive_health_dashboard.py**: Full health analysis with trend detection and alerts
-- **fulcra_enhanced_sleep_briefing.py**: Sleep analysis enhanced with comprehensive metrics
+- Compose sleep analysis inside your agent runtime from raw context returned by this skill. This public package does not include LLM-calling report scripts.
 - Supports: Cardiovascular (16), Respiratory (11), Activity (13), Sleep (6), Movement (15), Body measurements (8), Nutrition (23), Vitamins/Minerals (26), Blood/Lab (3), Reproductive (15), Symptoms (30), Environmental (9), Wellness events (7), Sports-specific (13), and more
 
 ### 📊 Sleep Analysis
 - **fulcra_sleep_utils.py**: Accurate sleep duration using `sleep_cycles` API, fixes UTC date selection bug
-- **fulcra_sleep_briefing.py**: Comprehensive LLM-generated analysis with cross-referenced data streams
+- Use `fulcra_sleep_utils.py` output to compose briefings inside your agent runtime.
 - **sleep_chart.py**: Publication-ready dark-theme visualizations
 
-### 📝 User Annotations
-- **fulcra_annotations.py**: Coffee timing, mood, medications, subjective sleep quality
-- Correlate user-logged events with objective biometric data
+### 📝 Annotation Workflows
+- Reading and correlating existing annotation data belongs in this skill.
+- Creating annotation definitions or recording new annotation events should use the companion skill:
+  <https://github.com/arc-claw-bot/fulcra-annotations-skill>
+- Pair both skills for closed-loop workflows: read context with `fulcra-context`, then record user-approved events with `fulcra-annotations`.
 
 ### 🌍 Timezone Handling
 - **fulcra_timezone.py**: Dynamic timezone from Fulcra API, automatic DST handling
@@ -62,33 +64,30 @@ Access your human's biometrics, sleep, activity, calendar, and location data via
 
 ### 🚨 Monitoring
 - **fulcra_data_watchdog.py**: Alert when biometric data goes stale (>12h)
-- **fulcra_auth.py**: OAuth2 lifecycle management with refresh tokens
 
 ## Key Features
 
-✅ **Complete metrics coverage**: ALL 188 Fulcra metrics organized by category  
-✅ **Comprehensive health analysis**: Trend detection, correlation analysis, health alerts  
-✅ **Enhanced sleep briefing**: Traditional sleep + respiratory + activity + environment  
-✅ **Sleep stage math fix**: Use authoritative `total_time_asleep_ms` (matches Apple Health)  
-✅ **UTC date selection fix**: Today's local date = correct UTC bucket for sleep data  
-✅ **Timezone-aware**: Fetches user's timezone from Fulcra, handles DST automatically  
-✅ **Cross-referenced analysis**: Sleep + HRV + calendar + exercise + annotations  
-✅ **Production-ready**: 6,000+ lines of battle-tested utilities  
-✅ **Privacy-safe**: Generic paths, no hardcoded personal info, sanitized for publishing  
+✅ **Complete metrics coverage**: ALL 188 Fulcra metrics organized by category
+✅ **Comprehensive health analysis**: Trend detection, correlation analysis, health alerts
+✅ **Sleep context primitives**: Sleep + respiratory + activity + environment data for agent-authored briefings
+✅ **Sleep stage math fix**: Use authoritative `total_time_asleep_ms` (matches Apple Health)
+✅ **UTC date selection fix**: Today's local date = correct UTC bucket for sleep data
+✅ **Timezone-aware**: Fetches user's timezone from Fulcra, handles DST automatically
+✅ **Cross-referenced analysis**: Sleep + HRV + calendar + exercise + annotations
+✅ **Production-ready**: 6,000+ lines of battle-tested utilities
+✅ **Privacy-safe**: Generic paths, no hardcoded personal info, sanitized for publishing
 
 ## Environment Variables
 
 ```bash
-# Output directory (default: ~/.openclaw/data/fulcra-analysis)
+# Override the Fulcra CLI command when the binary is not on PATH.
+export FULCRA_CLI_COMMAND="fulcra-api"
+
+# Output directory (choose an app-owned writable directory)
 export FULCRA_OUTPUT_DIR=/custom/path
 
-# LLM for briefing generation (default: OpenClaw gateway)
-export LLM_ENDPOINT=http://localhost:8080/v1/chat/completions
-export LLM_MODEL=gpt-4
-export LLM_API_TOKEN=your_token
-
-# Context files (default: ~/.openclaw/memory/topics)
-export CONTEXT_DIR=~/.openclaw/memory/topics
+# Optional context files for local baselines or hypotheses
+export CONTEXT_DIR=/custom/context/path
 
 # Timezone override (default: from Fulcra API)
 export OPENCLAW_TIMEZONE=America/New_York
@@ -97,12 +96,6 @@ export OPENCLAW_TIMEZONE=America/New_York
 ## Cron Jobs
 
 ```bash
-# Keep token fresh
-0 */12 * * * python3 scripts/fulcra_auth.py refresh
-
-# Pre-compute sleep briefing
-0 */2 * * * python3 scripts/fulcra_sleep_briefing.py
-
 # Monitor data freshness
 0 */4 * * * python3 scripts/fulcra_data_watchdog.py
 ```

@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Default data directory - can be overridden via environment or command line
-DEFAULT_DATA_DIR = Path.home() / ".openclaw/workspace/data/fulcra-analysis"
+DEFAULT_DATA_DIR = Path.home() / ".fulcra-context" / "analysis"
 
 # Premium dark theme
 BG = '#0d1117'

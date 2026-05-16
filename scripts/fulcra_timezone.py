@@ -14,25 +14,26 @@ Python's ZoneInfo handles DST automatically.
 
 import json
 import os
+import sys
 from datetime import datetime, timezone, date
 from zoneinfo import ZoneInfo
 from pathlib import Path
 
+SCRIPT_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(SCRIPT_DIR))
+
+from fulcra_cli_adapter import fetch_user_info
+
 # Cache file — refreshed daily or on miss
-_CACHE_PATH = Path.home() / '.config' / 'fulcra' / 'timezone_cache.json'
+_CACHE_PATH = Path(os.environ.get("FULCRA_CACHE_DIR", str(Path.home() / ".config" / "fulcra"))) / "timezone_cache.json"
 _tz_instance = None  # in-memory cache for the session
 
 
-def _get_fulcra_client():
-    """Get authenticated Fulcra API client (standalone, no circular imports)."""
-    from fulcra_api.core import FulcraAPI
-    from datetime import timedelta
-    api = FulcraAPI()
-    token_path = Path.home() / '.config' / 'fulcra' / 'token.json'
-    td = json.loads(token_path.read_text())
-    api.fulcra_cached_access_token = td['access_token']
-    api.fulcra_cached_access_token_expiration = datetime.now(timezone.utc) + timedelta(hours=1)
-    return api
+def _get_user_info(client=None):
+    """Get Fulcra user profile/preferences without constructing raw SDK clients here."""
+    if client is not None and hasattr(client, "get_user_info"):
+        return client.get_user_info()
+    return fetch_user_info() or {}
 
 
 def _read_cache():
@@ -68,7 +69,7 @@ def get_user_tz(client=None) -> ZoneInfo:
     Resolution order:
     1. In-memory cache (fastest, same session)
     2. Disk cache (same day)
-    3. Fulcra API get_user_info() → preferences.timezone
+    3. Fulcra CLI user-info or provided client get_user_info() → preferences.timezone
     4. OPENCLAW_TIMEZONE env var
     5. Fallback: America/New_York (last resort, logs warning)
     
@@ -89,9 +90,7 @@ def get_user_tz(client=None) -> ZoneInfo:
     # 3. Fulcra API
     if not tz_name:
         try:
-            if client is None:
-                client = _get_fulcra_client()
-            info = client.get_user_info()
+            info = _get_user_info(client)
             tz_name = info.get('preferences', {}).get('timezone')
             if tz_name:
                 _write_cache(tz_name)
@@ -150,9 +149,7 @@ def get_periods_of_day(client=None) -> dict:
     Falls back to sensible defaults.
     """
     try:
-        if client is None:
-            client = _get_fulcra_client()
-        info = client.get_user_info()
+        info = _get_user_info(client)
         periods = info.get('preferences', {}).get('periods_of_day')
         if periods:
             return periods
