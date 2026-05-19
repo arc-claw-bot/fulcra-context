@@ -27,6 +27,7 @@ from fulcra_cli_adapter import (
     fetch_location_updates,
     fetch_location_visits,
     fetch_metric_samples,
+    fetch_metric_time_series,
     fetch_user_info,
     fetch_workouts,
 )
@@ -101,6 +102,21 @@ class FulcraDataService:
         except Exception:
             return []
 
+    def _get_metric_time_series(self, start_date, end_date, metric_name, sample_rate=1, agg_function="mean"):
+        """Fetch aggregated metric time series, preferring CLI when available."""
+        start_iso = self._normalize_date_input(start_date)
+        end_iso = self._normalize_date_input(end_date)
+
+        series = fetch_metric_time_series(start_iso, end_iso, metric_name, sample_rate, agg_function)
+        if series is not None:
+            return series
+
+        try:
+            api = self._ensure_api()
+            return api.metric_time_series(start_iso, end_iso, metric_name, sample_rate=sample_rate, agg_function=agg_function)
+        except Exception:
+            return []
+
     def _get_workouts(self, start_date, end_date):
         """Fetch workouts, preferring CLI when available."""
         start_iso = self._normalize_date_input(start_date)
@@ -137,6 +153,11 @@ class FulcraDataService:
         """Return raw metric samples, preferring a Fulcra CLI when present."""
         samples = self._get_metric_samples(start_date, end_date, metric_name)
         return samples if isinstance(samples, list) else []
+
+    def get_metric_time_series(self, start_date, end_date, metric_name, sample_rate=1, agg_function="mean"):
+        """Return aggregated metric time series, preferring a Fulcra CLI when present."""
+        series = self._get_metric_time_series(start_date, end_date, metric_name, sample_rate, agg_function)
+        return series if isinstance(series, list) else []
 
     def get_calendar_events(self, start_date, end_date):
         """Return raw calendar events, preferring a Fulcra CLI when present."""
@@ -458,6 +479,10 @@ def get_service():
 def get_metric_daily(start_date, end_date, metric_name):
     """Get daily metrics - convenience wrapper."""
     return get_service().get_metric_daily(start_date, end_date, metric_name)
+
+def get_metric_time_series(start_date, end_date, metric_name, sample_rate=1, agg_function="mean"):
+    """Get aggregated time series - convenience wrapper."""
+    return get_service().get_metric_time_series(start_date, end_date, metric_name, sample_rate, agg_function)
 
 def get_nutrition_daily(start_date, end_date):
     """Get daily nutrition - convenience wrapper."""

@@ -106,7 +106,6 @@ def fetch_metric_samples(start_date: str, end_date: str, metric_name: str) -> Op
         attempts.extend(
             [
                 [*base, "get-records", metric_name, start_date, end_date],
-                [*base, "metric-time-series", metric_name, start_date, end_date],
             ]
         )
 
@@ -115,6 +114,24 @@ def fetch_metric_samples(start_date: str, end_date: str, metric_name: str) -> Op
         samples = _extract_list(payload, ("samples", "data", "items", "results"))
         if samples is not None:
             return samples
+    return None
+
+
+def fetch_metric_time_series(start_date: str, end_date: str, metric_name: str, sample_rate: int = 1, agg_function: str = "mean") -> Optional[list]:
+    """Fetch resampled/aggregated metric time series from a Fulcra CLI if one is available."""
+    attempts = []
+    for base in _command_parts():
+        attempts.extend(
+            [
+                [*base, "metric-time-series", "--sample-rate", str(sample_rate), "--agg-function", agg_function, metric_name, start_date, end_date],
+            ]
+        )
+
+    for args in attempts:
+        payload = _run_cli(args)
+        series = _extract_list(payload, ("series", "data", "items", "results"))
+        if series is not None:
+            return series
     return None
 
 
