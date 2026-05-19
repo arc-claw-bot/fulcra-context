@@ -23,9 +23,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 from fulcra_timezone import get_user_tz, now_local, today_local
 from fulcra_cli_adapter import (
+    download_library_file as fetch_library_file_content,
     fetch_calendar_events,
     fetch_calendars,
     fetch_catalog,
+    fetch_library_files,
     fetch_location_updates,
     fetch_location_visits,
     fetch_metric_samples,
@@ -151,6 +153,14 @@ class FulcraDataService:
         except Exception:
             return []
 
+    def _get_library_files(self, path: str):
+        """Fetch file listing from Fulcra Library."""
+        return fetch_library_files(path) or []
+
+    def _download_library_file(self, path: str):
+        """Download file content from Fulcra Library."""
+        return fetch_library_file_content(path)
+
     def _get_calendars(self):
         """Fetch calendars, preferring CLI when available."""
         cals = fetch_calendars()
@@ -193,6 +203,14 @@ class FulcraDataService:
         """Return raw calendar events, preferring a Fulcra CLI when present."""
         events = self._get_calendar_events(start_date, end_date)
         return events if isinstance(events, list) else []
+
+    def get_library_files(self, path: str):
+        """Return file listing from Fulcra Library."""
+        return self._get_library_files(path)
+
+    def download_library_file(self, path: str):
+        """Return downloaded file content from Fulcra Library."""
+        return self._download_library_file(path)
 
     def get_calendars(self):
         """Return raw calendars, preferring a Fulcra CLI when present."""
@@ -516,6 +534,14 @@ def get_service():
 
 
 # Convenience functions that other scripts can import directly
+def get_library_files(path: str):
+    """Get library files - convenience wrapper."""
+    return get_service().get_library_files(path)
+
+def download_library_file(path: str):
+    """Download library file - convenience wrapper."""
+    return get_service().download_library_file(path)
+
 def get_catalog():
     """Get catalog - convenience wrapper."""
     return get_service().get_catalog()
