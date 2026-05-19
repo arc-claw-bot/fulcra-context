@@ -13,6 +13,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+import numpy as np
 
 try:
     from fulcra_data_service import get_service, get_catalog
@@ -49,6 +50,54 @@ def _sample_rate_for_window(start_dt, end_dt, is_all_day=False):
     if duration_seconds > 3 * 3600:
         return 300
     return 60
+
+
+def _catmull_rom_spline(P0, P1, P2, P3, num_points=20):
+    """Compute points for a single Catmull-Rom spline segment."""
+    t = np.linspace(0, 1, num_points)
+    t2 = t * t
+    t3 = t2 * t
+    alpha = 0.5 
+    
+    pts = []
+    for i in range(num_points):
+        x = alpha * ((2 * P1[0]) + 
+                    (-P0[0] + P2[0]) * t[i] + 
+                    (2*P0[0] - 5*P1[0] + 4*P2[0] - P3[0]) * t2[i] + 
+                    (-P0[0] + 3*P1[0] - 3*P2[0] + P3[0]) * t3[i])
+        y = alpha * ((2 * P1[1]) + 
+                    (-P0[1] + P2[1]) * t[i] + 
+                    (2*P0[1] - 5*P1[1] + 4*P2[1] - P3[1]) * t2[i] + 
+                    (-P0[1] + 3*P1[1] - 3*P2[1] + P3[1]) * t3[i])
+        pts.append((x, y))
+    return pts
+
+def _smooth_curve(times, values, points_per_segment=20):
+    """Generate a smoothed Catmull-Rom spline through the given datetime and value arrays."""
+    if len(times) < 3:
+        return times, values
+        
+    ts = [t.timestamp() for t in times]
+    pts = list(zip(ts, values))
+    
+    # Pad ends to compute first and last segments
+    pts.insert(0, pts[0])
+    pts.append(pts[-1])
+    
+    smooth_ts = []
+    smooth_vals = []
+    
+    for i in range(1, len(pts)-2):
+        # Exclude the last point of the segment to avoid overlap, unless it's the very last segment
+        segment = _catmull_rom_spline(pts[i-1], pts[i], pts[i+1], pts[i+2], points_per_segment)
+        if i < len(pts) - 3:
+            segment = segment[:-1]
+        for p in segment:
+            smooth_ts.append(p[0])
+            smooth_vals.append(p[1])
+            
+    smooth_times = [datetime.fromtimestamp(t, tz=times[0].tzinfo) for t in smooth_ts]
+    return smooth_times, smooth_vals
 
 
 def plot_calendar_vitals(hours=24, out_file=None, include_all_day=False, metric="HeartRate"):
@@ -144,7 +193,8 @@ def plot_calendar_vitals(hours=24, out_file=None, include_all_day=False, metric=
             ax.text(0.5, 0.5, f"No numeric {metric} data", color=SUBTEXT, ha='center', va='center')
             continue
 
-        ax.plot(times, vals, color=HR_LINE, linewidth=1.5, alpha=0.8)
+        smooth_times, smooth_vals = _smooth_curve(times, vals)
+        ax.plot(smooth_times, smooth_vals, color=HR_LINE, linewidth=1.8, alpha=0.85)
         
         avg_val = sum(vals) / len(vals)
         max_val = max(vals)
