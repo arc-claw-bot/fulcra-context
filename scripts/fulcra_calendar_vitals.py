@@ -15,6 +15,26 @@ except ImportError:
     print(json.dumps({"error": "Could not import fulcra_data_service."}))
     sys.exit(1)
 
+def _parse_dt(value):
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def _sample_rate_for_window(start_dt, end_dt, is_all_day=False):
+    if is_all_day or not start_dt or not end_dt:
+        return 1800
+    duration_seconds = max(0, int((end_dt - start_dt).total_seconds()))
+    if duration_seconds > 12 * 3600:
+        return 1800
+    if duration_seconds > 3 * 3600:
+        return 300
+    return 60
+
+
 def main():
     parser = argparse.ArgumentParser(description="Fetch calendar events aligned with health metric time series data.")
     parser.add_argument("--hours", type=int, default=24, help="Time range in hours (default: 24)")
@@ -38,32 +58,53 @@ def main():
         calendars = service.get_calendars()
         cal_map = {c.get('calendar_id'): c.get('calendar_name', 'Unknown Calendar') for c in calendars}
 
+        range_start = start
+        range_end = end
         aligned_events = []
         for event in events:
             start_date = event.get('start_date')
             end_date = event.get('end_date')
             is_all_day = event.get('is_all_day', False)
             cal_id = event.get('calendar_id')
-            
-            event['calendar_name'] = cal_map.get(cal_id, 'Unknown Calendar')
+            calendar_name = cal_map.get(cal_id, 'Unknown Calendar')
 
             if not args.include_all_day and is_all_day:
                 continue
 
             if not start_date or not end_date:
-                aligned_events.append(event)
                 continue
 
-            # Sample rate is 1s for normal, 30m (1800s) for all-day events to prevent overload
-            sample_rate = 1800 if is_all_day else 1
+            event_start = _parse_dt(start_date)
+            event_end = _parse_dt(end_date)
+            if not event_start or not event_end:
+                continue
+
+            window_start = max(event_start, range_start)
+            window_end = min(event_end, range_end)
+            if window_end <= window_start:
+                continue
+
+            sample_rate = _sample_rate_for_window(window_start, window_end, is_all_day)
 
             metric_series = service.get_metric_time_series(
-                start_date, end_date, args.metric, 
+                window_start.isoformat(), window_end.isoformat(), args.metric,
                 sample_rate=sample_rate, agg_function="mean"
             )
 
-            event[f'{args.metric.lower()}_series'] = metric_series
-            aligned_events.append(event)
+            # Deliberately do not echo full calendar records: they may contain
+            # notes, locations, attendee data, video links, and external IDs.
+            aligned_events.append({
+                "title": event.get("title", "Untitled"),
+                "calendar_name": calendar_name,
+                "start_date": start_date,
+                "end_date": end_date,
+                "window_start": window_start.isoformat(),
+                "window_end": window_end.isoformat(),
+                "is_all_day": bool(is_all_day),
+                "sample_rate": sample_rate,
+                "metric": args.metric,
+                "metric_series": metric_series,
+            })
 
         print(json.dumps(aligned_events, indent=2, default=str))
 

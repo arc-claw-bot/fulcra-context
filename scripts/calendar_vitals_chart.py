@@ -31,6 +31,26 @@ TEXT = '#c9d1d9'
 SUBTEXT = '#8b949e'
 HR_LINE = '#ff4d4d'
 
+def _parse_dt(value):
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def _sample_rate_for_window(start_dt, end_dt, is_all_day=False):
+    if is_all_day or not start_dt or not end_dt:
+        return 1800
+    duration_seconds = max(0, int((end_dt - start_dt).total_seconds()))
+    if duration_seconds > 12 * 3600:
+        return 1800
+    if duration_seconds > 3 * 3600:
+        return 300
+    return 60
+
+
 def plot_calendar_vitals(hours=24, out_file=None, include_all_day=False, metric="HeartRate"):
     if out_file is None:
         out_file = DEFAULT_DATA_DIR / f"calendar_{metric.lower()}.png"
@@ -74,9 +94,21 @@ def plot_calendar_vitals(hours=24, out_file=None, include_all_day=False, metric=
             
         if not s or not e:
             continue
+
+        event_start = _parse_dt(s)
+        event_end = _parse_dt(e)
+        if not event_start or not event_end:
+            continue
+
+        window_start = max(event_start, start)
+        window_end = min(event_end, end)
+        if window_end <= window_start:
+            continue
             
-        rate = 1800 if is_all_day else 1
-        metric_series = service.get_metric_time_series(s, e, metric, sample_rate=rate, agg_function="mean")
+        rate = _sample_rate_for_window(window_start, window_end, is_all_day)
+        metric_series = service.get_metric_time_series(
+            window_start.isoformat(), window_end.isoformat(), metric, sample_rate=rate, agg_function="mean"
+        )
         if metric_series and len(metric_series) > 0:
             aligned.append({
                 "title": event.get('title', 'Untitled'),
