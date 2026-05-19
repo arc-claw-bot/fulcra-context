@@ -171,6 +171,24 @@ def plot_calendar_vitals(hours=24, out_file=None, include_all_day=False, metric=
         print(f"No {metric} data found for any events in the timeframe.")
         return
 
+    # Fetch processed transcripts for annotations
+    try:
+        from fulcra_data_service import get_library_files, download_library_file
+        import json
+        annotations = []
+        files = get_library_files("/meeting-transcripts/processed")
+        if files:
+            for f in files:
+                if f.endswith('.json'):
+                    content = download_library_file(f"/meeting-transcripts/processed/{f}")
+                    if content:
+                        try:
+                            annotations.append(json.loads(content))
+                        except Exception:
+                            pass
+    except ImportError:
+        annotations = []
+
     # Create figure
     num_events = len(aligned)
     fig, axes = plt.subplots(num_events, 1, figsize=(10, 3 * num_events), squeeze=False)
@@ -196,6 +214,41 @@ def plot_calendar_vitals(hours=24, out_file=None, include_all_day=False, metric=
         smooth_times, smooth_vals = _smooth_curve(times, vals)
         ax.plot(smooth_times, smooth_vals, color=HR_LINE, linewidth=1.8, alpha=0.85)
         
+        # Overlay any matching transcript annotations
+        for ann in annotations:
+            # Check if this annotation belongs to this meeting title
+            # In a real app we'd match exact timestamps or event IDs, but for this poc title matching is sufficient
+            if ann.get("meeting_title") in ev['title']:
+                spikes = ann.get("spikes", [])
+                if spikes:
+                    # Just plot the peak spike context for clarity on a zoomed-out calendar chart
+                    top_spike = max(spikes, key=lambda x: x["metric_value"])
+                    spike_time = datetime.fromisoformat(top_spike["utc_time"].replace("Z", "+00:00"))
+                    
+                    event_start = _parse_dt(ev['start'])
+                    event_end = _parse_dt(ev['end'])
+                    
+                    # Ensure the spike falls within this event window
+                    if event_start <= spike_time <= event_end:
+                        spike_val = top_spike["metric_value"]
+                        summary = top_spike.get("context_summary", "Spike detected")
+                        
+                        import textwrap
+                        wrapped_summary = "\n".join(textwrap.wrap(summary, width=45))
+                        
+                        # Use a bold yellow marker
+                        ANNOTATION_COLOR = '#ffcc00'
+                        ax.plot(spike_time, spike_val, 'o', color=ANNOTATION_COLOR, markersize=8, zorder=5)
+                        ax.annotate(wrapped_summary, 
+                                    xy=(spike_time, spike_val),
+                                    xytext=(-80, -70),
+                                    textcoords="offset points",
+                                    color=BG,
+                                    fontsize=9,
+                                    fontweight='bold',
+                                    bbox=dict(boxstyle="round,pad=0.5", fc=ANNOTATION_COLOR, ec=ANNOTATION_COLOR, alpha=0.9),
+                                    arrowprops=dict(arrowstyle="-|>", color=ANNOTATION_COLOR, lw=2, connectionstyle="angle3,angleA=90,angleB=0"))
+
         avg_val = sum(vals) / len(vals)
         max_val = max(vals)
         min_val = min(vals)
