@@ -31,19 +31,23 @@ TEXT = '#c9d1d9'
 SUBTEXT = '#8b949e'
 HR_LINE = '#ff4d4d'
 
-def plot_calendar_vitals(hours=24, out_file=None, include_all_day=False):
+def plot_calendar_vitals(hours=24, out_file=None, include_all_day=False, metric="HeartRate"):
     if out_file is None:
-        out_file = DEFAULT_DATA_DIR / "calendar_vitals.png"
+        out_file = DEFAULT_DATA_DIR / f"calendar_{metric.lower()}.png"
     out_file = Path(out_file)
     out_file.parent.mkdir(parents=True, exist_ok=True)
 
     service = get_service()
     user_tz = get_user_tz()
     
-    # Get units from catalog
+    # Get metadata from catalog
     catalog = get_catalog()
-    hr_meta = next((m for m in catalog if m.get('id') == 'HeartRate'), {})
-    hr_unit = hr_meta.get('unit', 'bpm')
+    metric_meta = next((m for m in catalog if m.get('id') == metric), {})
+    metric_unit = metric_meta.get('unit', '')
+    if metric_unit:
+        metric_unit = f" {metric_unit}" # prepend space for formatting
+    metric_col = metric_meta.get('column_name', 'heart_rate')
+    val_key = f"mean_{metric_col}"
     
     end = datetime.now(timezone.utc)
     start = end - timedelta(hours=hours)
@@ -56,7 +60,7 @@ def plot_calendar_vitals(hours=24, out_file=None, include_all_day=False):
     calendars = service.get_calendars()
     cal_map = {c.get('calendar_id'): c.get('calendar_name', 'Unknown Calendar') for c in calendars}
 
-    # Filter events that actually have heart rate data
+    # Filter events that actually have metric data
     aligned = []
     for event in events:
         s = event.get('start_date')
@@ -72,18 +76,18 @@ def plot_calendar_vitals(hours=24, out_file=None, include_all_day=False):
             continue
             
         rate = 1800 if is_all_day else 1
-        hr_series = service.get_metric_time_series(s, e, "HeartRate", sample_rate=rate, agg_function="mean")
-        if hr_series and len(hr_series) > 0:
+        metric_series = service.get_metric_time_series(s, e, metric, sample_rate=rate, agg_function="mean")
+        if metric_series and len(metric_series) > 0:
             aligned.append({
                 "title": event.get('title', 'Untitled'),
                 "calendar_name": cal_name,
                 "start": s,
                 "end": e,
-                "hr_series": hr_series
+                "metric_series": metric_series
             })
 
     if not aligned:
-        print("No heart rate data found for any events in the timeframe.")
+        print(f"No {metric} data found for any events in the timeframe.")
         return
 
     # Create figure
@@ -96,23 +100,23 @@ def plot_calendar_vitals(hours=24, out_file=None, include_all_day=False):
         ax.set_facecolor(PANEL)
         
         times = []
-        hrs = []
-        for pt in ev['hr_series']:
-            val = pt.get('mean_heart_rate')
+        vals = []
+        for pt in ev['metric_series']:
+            val = pt.get(val_key) or pt.get(metric_col)
             ts = pt.get('time') or pt.get('start_date')
             if val is not None and ts is not None:
                 times.append(datetime.fromisoformat(ts.replace("Z", "+00:00")))
-                hrs.append(val)
+                vals.append(val)
                 
-        if not hrs:
-            ax.text(0.5, 0.5, "No numeric HR data", color=SUBTEXT, ha='center', va='center')
+        if not vals:
+            ax.text(0.5, 0.5, f"No numeric {metric} data", color=SUBTEXT, ha='center', va='center')
             continue
 
-        ax.plot(times, hrs, color=HR_LINE, linewidth=1.5, alpha=0.8)
+        ax.plot(times, vals, color=HR_LINE, linewidth=1.5, alpha=0.8)
         
-        avg_hr = sum(hrs) / len(hrs)
-        max_hr = max(hrs)
-        min_hr = min(hrs)
+        avg_val = sum(vals) / len(vals)
+        max_val = max(vals)
+        min_val = min(vals)
         
         # Localize times for the title
         start_dt = to_local(datetime.fromisoformat(ev['start'].replace("Z", "+00:00")))
@@ -120,7 +124,10 @@ def plot_calendar_vitals(hours=24, out_file=None, include_all_day=False):
         time_str = f"{start_dt.strftime('%I:%M %p')} - {end_dt.strftime('%I:%M %p')}"
         
         cal_tag = f"[{ev['calendar_name']}] " if ev.get('calendar_name') else ""
-        ax.set_title(f"{cal_tag}{ev['title']} ({time_str})  |  Avg: {avg_hr:.0f} {hr_unit}  Max: {max_hr:.0f} {hr_unit}  Min: {min_hr:.0f} {hr_unit}", 
+        
+        # If values are floats like 85.0 for HeartRate, 0f is fine, but HRV might need 1f. Let's format conditionally.
+        fmt = ".1f" if isinstance(avg_val, float) and avg_val < 50 else ".0f"
+        ax.set_title(f"{cal_tag}{ev['title']} ({time_str})  |  Avg: {avg_val:{fmt}}{metric_unit}  Max: {max_val:{fmt}}{metric_unit}  Min: {min_val:{fmt}}{metric_unit}", 
                      color=TEXT, pad=10, loc='left', fontsize=11)
                      
         ax.tick_params(colors=SUBTEXT, labelsize=9)
@@ -141,6 +148,7 @@ if __name__ == "__main__":
     parser.add_argument("--hours", type=int, default=24, help="Hours to look back")
     parser.add_argument("--out", type=str, default=None, help="Output PNG path")
     parser.add_argument("--include-all-day", action="store_true", help="Include all-day events")
+    parser.add_argument("--metric", type=str, default="HeartRate", help="Health metric ID from catalog (e.g. HeartRate, HeartRateVariabilitySDNN)")
     args = parser.parse_args()
     
-    plot_calendar_vitals(hours=args.hours, out_file=args.out, include_all_day=args.include_all_day)
+    plot_calendar_vitals(hours=args.hours, out_file=args.out, include_all_day=args.include_all_day, metric=args.metric)

@@ -16,9 +16,10 @@ except ImportError:
     sys.exit(1)
 
 def main():
-    parser = argparse.ArgumentParser(description="Fetch calendar events aligned with heart rate time series data.")
+    parser = argparse.ArgumentParser(description="Fetch calendar events aligned with health metric time series data.")
     parser.add_argument("--hours", type=int, default=24, help="Time range in hours (default: 24)")
     parser.add_argument("--include-all-day", action="store_true", help="Include all-day events")
+    parser.add_argument("--metric", type=str, default="HeartRate", help="Health metric ID from catalog (e.g. HeartRate, HeartRateVariabilitySDNN)")
     args = parser.parse_args()
 
     service = get_service()
@@ -56,13 +57,12 @@ def main():
             # Sample rate is 1s for normal, 30m (1800s) for all-day events to prevent overload
             sample_rate = 1800 if is_all_day else 1
 
-            hr_series = service.get_metric_time_series(
-                start_date, end_date, "HeartRate", 
+            metric_series = service.get_metric_time_series(
+                start_date, end_date, args.metric, 
                 sample_rate=sample_rate, agg_function="mean"
             )
 
-            # Assign directly as it matches align.sh output `. + {heart_rate_series: hr}`
-            event['heart_rate_series'] = hr_series
+            event[f'{args.metric.lower()}_series'] = metric_series
             aligned_events.append(event)
 
         print(json.dumps(aligned_events, indent=2, default=str))
