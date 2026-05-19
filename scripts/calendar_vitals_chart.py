@@ -204,7 +204,7 @@ def plot_calendar_vitals(hours=24, out_file=None, include_all_day=False, metric=
 
     # Create figure
     num_events = len(aligned)
-    fig, axes = plt.subplots(num_events, 1, figsize=(10, 3 * num_events), squeeze=False)
+    fig, axes = plt.subplots(num_events, 1, figsize=(10, 4.5 * num_events), squeeze=False)
     fig.patch.set_facecolor(BG)
 
     for idx, ev in enumerate(aligned):
@@ -240,6 +240,8 @@ def plot_calendar_vitals(hours=24, out_file=None, include_all_day=False, metric=
                     event_start = _parse_dt(ev['start'])
                     event_end = _parse_dt(ev['end'])
                     
+                    footer_items = []
+                    
                     for i, spike in enumerate(top_spikes):
                         spike_time = datetime.fromisoformat(spike["utc_time"].replace("Z", "+00:00"))
                         
@@ -248,26 +250,42 @@ def plot_calendar_vitals(hours=24, out_file=None, include_all_day=False, metric=
                             spike_val = spike["metric_value"]
                             summary = spike.get("context_summary", "Spike detected")
                             
-                            import textwrap
-                            wrapped_summary = "\n".join(textwrap.wrap(summary, width=45))
-                            
-                            # Alternate Y-offset to prevent text box overlap for clustered spikes
-                            y_offset = -70 if i % 2 == 0 else 40
-                            # Also slight X-offset if we have a third one
-                            x_offset = -80 if i < 2 else 20
+                            time_str = spike_time.astimezone(user_tz).strftime('%I:%M %p')
                             
                             # Use a bold yellow marker
                             ANNOTATION_COLOR = '#ffcc00'
-                            ax.plot(spike_time, spike_val, 'o', color=ANNOTATION_COLOR, markersize=8, zorder=5)
-                            ax.annotate(wrapped_summary,
+                            ax.plot(spike_time, spike_val, 'o', color=ANNOTATION_COLOR, markersize=7, zorder=5)
+                            
+                            # Alternate Y-offset to prevent text overlap
+                            y_offset = 15 if i % 2 == 0 else -20
+                            ax.annotate(time_str,
                                         xy=(spike_time, spike_val),
-                                        xytext=(x_offset, y_offset),
+                                        xytext=(0, y_offset),
                                         textcoords="offset points",
-                                        color=BG,
+                                        color=ANNOTATION_COLOR,
                                         fontsize=9,
                                         fontweight='bold',
-                                        bbox=dict(boxstyle="round,pad=0.5", fc=ANNOTATION_COLOR, ec=ANNOTATION_COLOR, alpha=0.9),
-                                        arrowprops=dict(arrowstyle="-|>", color=ANNOTATION_COLOR, lw=2, connectionstyle="angle3,angleA=90,angleB=0"))
+                                        ha='center')
+                                        
+                            footer_items.append((time_str, summary))
+                            
+                    if footer_items:
+                        # Sort footer items by time
+                        footer_items.sort(key=lambda x: datetime.strptime(x[0], '%I:%M %p'))
+                        import textwrap
+                        footer_lines = []
+                        for t_str, summ in footer_items:
+                            wrapped = textwrap.fill(f"[{t_str}] {summ}", width=110, subsequent_indent="  ")
+                            footer_lines.append(wrapped)
+                        footer_text = "Meeting Context:\n" + "\n".join(footer_lines)
+                        
+                        ax.annotate(footer_text, 
+                                    xy=(0, -0.15), 
+                                    xycoords='axes fraction',
+                                    color=TEXT, 
+                                    fontsize=10, 
+                                    ha='left', 
+                                    va='top')
 
         avg_val = sum(vals) / len(vals)
         max_val = max(vals)
@@ -303,7 +321,7 @@ def plot_calendar_vitals(hours=24, out_file=None, include_all_day=False, metric=
         ax.grid(True, axis='y', color='#30363d', linestyle='--', alpha=0.5)
 
     plt.tight_layout(pad=3.0)
-    plt.savefig(out_file, facecolor=fig.get_facecolor(), edgecolor='none', dpi=120)
+    plt.savefig(out_file, facecolor=fig.get_facecolor(), edgecolor='none', dpi=120, bbox_inches='tight')
     plt.close()
 
     print(f"Calendar vitals chart saved to {out_file}")
