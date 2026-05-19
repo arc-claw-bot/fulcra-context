@@ -233,6 +233,58 @@ def fetch_catalog() -> Optional[list]:
             return cat
     return None
 
+def fetch_library_files(path: str) -> Optional[list]:
+    """List files in the Fulcra Library via the CLI file-commands branch."""
+    attempts = []
+    for base in _command_parts():
+        attempts.extend([
+            [*base, "file", "list", path],
+        ])
+
+    for args in attempts:
+        env = os.environ.copy()
+        try:
+            proc = subprocess.run(
+                args,
+                capture_output=True,
+                text=True,
+                check=False,
+                env=env,
+                timeout=60,
+            )
+            if proc.returncode == 0:
+                lines = [line.strip() for line in proc.stdout.split('\n') if line.strip()]
+                return lines
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            continue
+    return None
+
+
+def download_library_file(path: str) -> Optional[str]:
+    """Download a file from the Fulcra Library via the CLI and return its content as a string."""
+    attempts = []
+    for base in _command_parts():
+        attempts.extend([
+            [*base, "file", "download", path, "-"],
+        ])
+
+    for args in attempts:
+        env = os.environ.copy()
+        try:
+            proc = subprocess.run(
+                args,
+                capture_output=True,
+                text=True,
+                check=False,
+                env=env,
+                timeout=60,
+            )
+            if proc.returncode == 0:
+                return proc.stdout
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            continue
+    return None
+
 def fetch_user_info() -> Optional[dict]:
     """Fetch Fulcra user profile/preferences from a CLI if one is available."""
     attempts = []
