@@ -16,8 +16,9 @@ import matplotlib.dates as mdates
 
 try:
     from fulcra_data_service import get_service
+    from fulcra_timezone import get_user_tz, to_local
 except ImportError:
-    print("Could not import fulcra_data_service.")
+    print("Could not import fulcra modules.")
     exit(1)
 
 # Default data directory
@@ -30,13 +31,14 @@ TEXT = '#c9d1d9'
 SUBTEXT = '#8b949e'
 HR_LINE = '#ff4d4d'
 
-def plot_calendar_vitals(hours=24, out_file=None):
+def plot_calendar_vitals(hours=24, out_file=None, include_all_day=False):
     if out_file is None:
         out_file = DEFAULT_DATA_DIR / "calendar_vitals.png"
     out_file = Path(out_file)
     out_file.parent.mkdir(parents=True, exist_ok=True)
 
     service = get_service()
+    user_tz = get_user_tz()
     end = datetime.now(timezone.utc)
     start = end - timedelta(hours=hours)
 
@@ -52,6 +54,9 @@ def plot_calendar_vitals(hours=24, out_file=None):
         e = event.get('end_date')
         is_all_day = event.get('is_all_day', False)
         
+        if not include_all_day and is_all_day:
+            continue
+            
         if not s or not e:
             continue
             
@@ -97,14 +102,19 @@ def plot_calendar_vitals(hours=24, out_file=None):
         max_hr = max(hrs)
         min_hr = min(hrs)
         
-        ax.set_title(f"{ev['title']}  |  Avg: {avg_hr:.0f}  Max: {max_hr:.0f}  Min: {min_hr:.0f}", 
+        # Localize times for the title
+        start_dt = to_local(datetime.fromisoformat(ev['start'].replace("Z", "+00:00")))
+        end_dt = to_local(datetime.fromisoformat(ev['end'].replace("Z", "+00:00")))
+        time_str = f"{start_dt.strftime('%I:%M %p')} - {end_dt.strftime('%I:%M %p')}"
+        
+        ax.set_title(f"{ev['title']} ({time_str})  |  Avg: {avg_hr:.0f}  Max: {max_hr:.0f}  Min: {min_hr:.0f}", 
                      color=TEXT, pad=10, loc='left', fontsize=11)
                      
         ax.tick_params(colors=SUBTEXT, labelsize=9)
         for spine in ax.spines.values():
             spine.set_color('#30363d')
             
-        ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%I:%M %p', tz=user_tz))
         ax.grid(True, axis='y', color='#30363d', linestyle='--', alpha=0.5)
 
     plt.tight_layout(pad=3.0)
@@ -117,6 +127,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate calendar vitals chart.")
     parser.add_argument("--hours", type=int, default=24, help="Hours to look back")
     parser.add_argument("--out", type=str, default=None, help="Output PNG path")
+    parser.add_argument("--include-all-day", action="store_true", help="Include all-day events")
     args = parser.parse_args()
     
-    plot_calendar_vitals(hours=args.hours, out_file=args.out)
+    plot_calendar_vitals(hours=args.hours, out_file=args.out, include_all_day=args.include_all_day)

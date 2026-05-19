@@ -18,6 +18,7 @@ except ImportError:
 def main():
     parser = argparse.ArgumentParser(description="Fetch calendar events aligned with heart rate time series data.")
     parser.add_argument("--hours", type=int, default=24, help="Time range in hours (default: 24)")
+    parser.add_argument("--include-all-day", action="store_true", help="Include all-day events")
     args = parser.parse_args()
 
     service = get_service()
@@ -38,6 +39,9 @@ def main():
             start_date = event.get('start_date')
             end_date = event.get('end_date')
             is_all_day = event.get('is_all_day', False)
+
+            if not args.include_all_day and is_all_day:
+                continue
 
             if not start_date or not end_date:
                 aligned_events.append(event)
