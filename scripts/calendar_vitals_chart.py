@@ -82,7 +82,7 @@ def plot_calendar_vitals(hours=24, out_file=None):
         hrs = []
         for pt in ev['hr_series']:
             val = pt.get('mean_heart_rate')
-            ts = pt.get('start_date')
+            ts = pt.get('time') or pt.get('start_date')
             if val is not None and ts is not None:
                 times.append(datetime.fromisoformat(ts.replace("Z", "+00:00")))
                 hrs.append(val)
