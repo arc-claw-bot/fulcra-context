@@ -24,9 +24,12 @@ sys.path.insert(0, str(Path(__file__).parent))
 from fulcra_timezone import get_user_tz, now_local, today_local
 from fulcra_cli_adapter import (
     fetch_calendar_events,
+    fetch_calendars,
+    fetch_catalog,
     fetch_location_updates,
     fetch_location_visits,
     fetch_metric_samples,
+    fetch_metric_time_series,
     fetch_user_info,
     fetch_workouts,
 )
@@ -101,6 +104,21 @@ class FulcraDataService:
         except Exception:
             return []
 
+    def _get_metric_time_series(self, start_date, end_date, metric_name, sample_rate=1, agg_function="mean"):
+        """Fetch aggregated metric time series, preferring CLI when available."""
+        start_iso = self._normalize_date_input(start_date)
+        end_iso = self._normalize_date_input(end_date)
+
+        series = fetch_metric_time_series(start_iso, end_iso, metric_name, sample_rate, agg_function)
+        if series is not None:
+            return series
+
+        try:
+            api = self._ensure_api()
+            return api.metric_time_series(start_iso, end_iso, metric_name, sample_rate=sample_rate, agg_function=agg_function)
+        except Exception:
+            return []
+
     def _get_workouts(self, start_date, end_date):
         """Fetch workouts, preferring CLI when available."""
         start_iso = self._normalize_date_input(start_date)
@@ -133,15 +151,58 @@ class FulcraDataService:
         except Exception:
             return []
 
+    def _get_calendars(self):
+        """Fetch calendars, preferring CLI when available."""
+        cals = fetch_calendars()
+        if cals is not None:
+            return cals
+
+        try:
+            api = self._ensure_api()
+            if hasattr(api, 'calendars'):
+                return api.calendars()
+            return []
+        except Exception:
+            return []
+
+    def _get_catalog(self):
+        """Fetch the data catalog, preferring CLI when available."""
+        cat = fetch_catalog()
+        if cat is not None:
+            return cat
+
+        try:
+            api = self._ensure_api()
+            if hasattr(api, 'catalog'):
+                return api.catalog()
+            return []
+        except Exception:
+            return []
+
     def get_metric_samples(self, start_date, end_date, metric_name):
         """Return raw metric samples, preferring a Fulcra CLI when present."""
         samples = self._get_metric_samples(start_date, end_date, metric_name)
         return samples if isinstance(samples, list) else []
 
+    def get_metric_time_series(self, start_date, end_date, metric_name, sample_rate=1, agg_function="mean"):
+        """Return aggregated metric time series, preferring a Fulcra CLI when present."""
+        series = self._get_metric_time_series(start_date, end_date, metric_name, sample_rate, agg_function)
+        return series if isinstance(series, list) else []
+
     def get_calendar_events(self, start_date, end_date):
         """Return raw calendar events, preferring a Fulcra CLI when present."""
         events = self._get_calendar_events(start_date, end_date)
         return events if isinstance(events, list) else []
+
+    def get_calendars(self):
+        """Return raw calendars, preferring a Fulcra CLI when present."""
+        cals = self._get_calendars()
+        return cals if isinstance(cals, list) else []
+
+    def get_catalog(self):
+        """Return the data catalog, preferring a Fulcra CLI when present."""
+        cat = self._get_catalog()
+        return cat if isinstance(cat, list) else []
 
     # SDK-style compatibility methods for migrated one-off scripts. Prefer the
     # explicit get_* methods in new code; these keep old analysis logic usable
@@ -455,9 +516,17 @@ def get_service():
 
 
 # Convenience functions that other scripts can import directly
+def get_catalog():
+    """Get catalog - convenience wrapper."""
+    return get_service().get_catalog()
+
 def get_metric_daily(start_date, end_date, metric_name):
     """Get daily metrics - convenience wrapper."""
     return get_service().get_metric_daily(start_date, end_date, metric_name)
+
+def get_metric_time_series(start_date, end_date, metric_name, sample_rate=1, agg_function="mean"):
+    """Get aggregated time series - convenience wrapper."""
+    return get_service().get_metric_time_series(start_date, end_date, metric_name, sample_rate, agg_function)
 
 def get_nutrition_daily(start_date, end_date):
     """Get daily nutrition - convenience wrapper."""

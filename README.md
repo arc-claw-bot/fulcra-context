@@ -53,6 +53,10 @@ Fulcra gives agents and their humans scoped, secure access to read and write rea
 - Use `fulcra_sleep_utils.py` output to compose briefings inside your agent runtime.
 - **sleep_chart.py**: Publication-ready dark-theme visualizations
 
+### 📅 Calendar Vitals Correlation
+- **fulcra_calendar_vitals.py**: Aligns high-resolution heart rate data with calendar event windows.
+- **calendar_vitals_chart.py**: Dark-theme visualizations overlaying physiological state onto schedule context.
+
 ### 📝 Annotation Workflows
 - Reading and correlating existing annotation data belongs in this skill.
 - Creating annotation definitions or recording new annotation events should use the companion skill:

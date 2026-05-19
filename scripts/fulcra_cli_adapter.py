@@ -106,7 +106,6 @@ def fetch_metric_samples(start_date: str, end_date: str, metric_name: str) -> Op
         attempts.extend(
             [
                 [*base, "get-records", metric_name, start_date, end_date],
-                [*base, "metric-time-series", metric_name, start_date, end_date],
             ]
         )
 
@@ -115,6 +114,24 @@ def fetch_metric_samples(start_date: str, end_date: str, metric_name: str) -> Op
         samples = _extract_list(payload, ("samples", "data", "items", "results"))
         if samples is not None:
             return samples
+    return None
+
+
+def fetch_metric_time_series(start_date: str, end_date: str, metric_name: str, sample_rate: int = 1, agg_function: str = "mean") -> Optional[list]:
+    """Fetch resampled/aggregated metric time series from a Fulcra CLI if one is available."""
+    attempts = []
+    for base in _command_parts():
+        attempts.extend(
+            [
+                [*base, "metric-time-series", "--sample-rate", str(sample_rate), "--agg-function", agg_function, metric_name, start_date, end_date],
+            ]
+        )
+
+    for args in attempts:
+        payload = _run_cli(args)
+        series = _extract_list(payload, ("series", "data", "items", "results"))
+        if series is not None:
+            return series
     return None
 
 
@@ -181,6 +198,40 @@ def fetch_location_visits(start_date: str, end_date: str) -> Optional[list]:
             return visits
     return None
 
+
+def fetch_calendars() -> Optional[list]:
+    """Fetch all calendars from a Fulcra CLI if one is available."""
+    attempts = []
+    for base in _command_parts():
+        attempts.extend(
+            [
+                [*base, "calendars"],
+            ]
+        )
+
+    for args in attempts:
+        payload = _run_cli(args)
+        cals = _extract_list(payload, ("calendars", "data", "items", "results"))
+        if cals is not None:
+            return cals
+    return None
+
+def fetch_catalog() -> Optional[list]:
+    """Fetch the data catalog from a Fulcra CLI if one is available."""
+    attempts = []
+    for base in _command_parts():
+        attempts.extend(
+            [
+                [*base, "catalog"],
+            ]
+        )
+
+    for args in attempts:
+        payload = _run_cli(args)
+        cat = _extract_list(payload, ("catalog", "data", "items", "results"))
+        if cat is not None:
+            return cat
+    return None
 
 def fetch_user_info() -> Optional[dict]:
     """Fetch Fulcra user profile/preferences from a CLI if one is available."""
