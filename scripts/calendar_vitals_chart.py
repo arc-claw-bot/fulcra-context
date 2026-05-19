@@ -234,33 +234,40 @@ def plot_calendar_vitals(hours=24, out_file=None, include_all_day=False, metric=
             if ann.get("meeting_title") in ev['title']:
                 spikes = ann.get("spikes", [])
                 if spikes:
-                    # Just plot the peak spike context for clarity on a zoomed-out calendar chart
-                    top_spike = max(spikes, key=lambda x: x["metric_value"])
-                    spike_time = datetime.fromisoformat(top_spike["utc_time"].replace("Z", "+00:00"))
-
+                    # Plot up to 3 top spikes to show more context without overcrowding
+                    top_spikes = sorted(spikes, key=lambda x: x["metric_value"], reverse=True)[:3]
+                    
                     event_start = _parse_dt(ev['start'])
                     event_end = _parse_dt(ev['end'])
-
-                    # Ensure the spike falls within this event window
-                    if event_start <= spike_time <= event_end:
-                        spike_val = top_spike["metric_value"]
-                        summary = top_spike.get("context_summary", "Spike detected")
-
-                        import textwrap
-                        wrapped_summary = "\n".join(textwrap.wrap(summary, width=45))
-
-                        # Use a bold yellow marker
-                        ANNOTATION_COLOR = '#ffcc00'
-                        ax.plot(spike_time, spike_val, 'o', color=ANNOTATION_COLOR, markersize=8, zorder=5)
-                        ax.annotate(wrapped_summary,
-                                    xy=(spike_time, spike_val),
-                                    xytext=(-80, -70),
-                                    textcoords="offset points",
-                                    color=BG,
-                                    fontsize=9,
-                                    fontweight='bold',
-                                    bbox=dict(boxstyle="round,pad=0.5", fc=ANNOTATION_COLOR, ec=ANNOTATION_COLOR, alpha=0.9),
-                                    arrowprops=dict(arrowstyle="-|>", color=ANNOTATION_COLOR, lw=2, connectionstyle="angle3,angleA=90,angleB=0"))
+                    
+                    for i, spike in enumerate(top_spikes):
+                        spike_time = datetime.fromisoformat(spike["utc_time"].replace("Z", "+00:00"))
+                        
+                        # Ensure the spike falls within this event window
+                        if event_start <= spike_time <= event_end:
+                            spike_val = spike["metric_value"]
+                            summary = spike.get("context_summary", "Spike detected")
+                            
+                            import textwrap
+                            wrapped_summary = "\n".join(textwrap.wrap(summary, width=45))
+                            
+                            # Alternate Y-offset to prevent text box overlap for clustered spikes
+                            y_offset = -70 if i % 2 == 0 else 40
+                            # Also slight X-offset if we have a third one
+                            x_offset = -80 if i < 2 else 20
+                            
+                            # Use a bold yellow marker
+                            ANNOTATION_COLOR = '#ffcc00'
+                            ax.plot(spike_time, spike_val, 'o', color=ANNOTATION_COLOR, markersize=8, zorder=5)
+                            ax.annotate(wrapped_summary,
+                                        xy=(spike_time, spike_val),
+                                        xytext=(x_offset, y_offset),
+                                        textcoords="offset points",
+                                        color=BG,
+                                        fontsize=9,
+                                        fontweight='bold',
+                                        bbox=dict(boxstyle="round,pad=0.5", fc=ANNOTATION_COLOR, ec=ANNOTATION_COLOR, alpha=0.9),
+                                        arrowprops=dict(arrowstyle="-|>", color=ANNOTATION_COLOR, lw=2, connectionstyle="angle3,angleA=90,angleB=0"))
 
         avg_val = sum(vals) / len(vals)
         max_val = max(vals)
