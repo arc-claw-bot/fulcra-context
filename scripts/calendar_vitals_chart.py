@@ -175,6 +175,12 @@ def plot_calendar_vitals(hours=24, out_file=None, include_all_day=False, metric=
     try:
         from fulcra_data_service import get_library_files, download_library_file
         import json
+        
+        # Override CLI command temporarily for file fetch if needed
+        import os
+        old_cmd = os.environ.get("FULCRA_CLI_COMMAND")
+        os.environ["FULCRA_CLI_COMMAND"] = "uv tool run git+https://git@github.com/fulcradynamics/fulcra-api-python.git@file-commands"
+        
         annotations = []
         files = get_library_files("/meeting-transcripts/processed")
         if files:
@@ -186,6 +192,13 @@ def plot_calendar_vitals(hours=24, out_file=None, include_all_day=False, metric=
                             annotations.append(json.loads(content))
                         except Exception:
                             pass
+                            
+        # Restore environment
+        if old_cmd is None:
+            del os.environ["FULCRA_CLI_COMMAND"]
+        else:
+            os.environ["FULCRA_CLI_COMMAND"] = old_cmd
+            
     except ImportError:
         annotations = []
 
