@@ -34,11 +34,17 @@ def main():
             print(json.dumps([]))
             return
 
+        calendars = service.get_calendars()
+        cal_map = {c.get('calendar_id'): c.get('calendar_name', 'Unknown Calendar') for c in calendars}
+
         aligned_events = []
         for event in events:
             start_date = event.get('start_date')
             end_date = event.get('end_date')
             is_all_day = event.get('is_all_day', False)
+            cal_id = event.get('calendar_id')
+            
+            event['calendar_name'] = cal_map.get(cal_id, 'Unknown Calendar')
 
             if not args.include_all_day and is_all_day:
                 continue

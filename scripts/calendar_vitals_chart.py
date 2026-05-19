@@ -47,12 +47,17 @@ def plot_calendar_vitals(hours=24, out_file=None, include_all_day=False):
         print(f"No events found in the last {hours} hours.")
         return
 
+    calendars = service.get_calendars()
+    cal_map = {c.get('calendar_id'): c.get('calendar_name', 'Unknown Calendar') for c in calendars}
+
     # Filter events that actually have heart rate data
     aligned = []
     for event in events:
         s = event.get('start_date')
         e = event.get('end_date')
         is_all_day = event.get('is_all_day', False)
+        cal_id = event.get('calendar_id')
+        cal_name = cal_map.get(cal_id, 'Unknown Calendar')
         
         if not include_all_day and is_all_day:
             continue
@@ -65,6 +70,7 @@ def plot_calendar_vitals(hours=24, out_file=None, include_all_day=False):
         if hr_series and len(hr_series) > 0:
             aligned.append({
                 "title": event.get('title', 'Untitled'),
+                "calendar_name": cal_name,
                 "start": s,
                 "end": e,
                 "hr_series": hr_series
@@ -107,7 +113,8 @@ def plot_calendar_vitals(hours=24, out_file=None, include_all_day=False):
         end_dt = to_local(datetime.fromisoformat(ev['end'].replace("Z", "+00:00")))
         time_str = f"{start_dt.strftime('%I:%M %p')} - {end_dt.strftime('%I:%M %p')}"
         
-        ax.set_title(f"{ev['title']} ({time_str})  |  Avg: {avg_hr:.0f}  Max: {max_hr:.0f}  Min: {min_hr:.0f}", 
+        cal_tag = f"[{ev['calendar_name']}] " if ev.get('calendar_name') else ""
+        ax.set_title(f"{cal_tag}{ev['title']} ({time_str})  |  Avg: {avg_hr:.0f}  Max: {max_hr:.0f}  Min: {min_hr:.0f}", 
                      color=TEXT, pad=10, loc='left', fontsize=11)
                      
         ax.tick_params(colors=SUBTEXT, labelsize=9)
