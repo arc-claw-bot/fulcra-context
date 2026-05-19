@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
 try:
-    from fulcra_data_service import get_service
+    from fulcra_data_service import get_service, get_catalog
     from fulcra_timezone import get_user_tz, to_local
 except ImportError:
     print("Could not import fulcra modules.")
@@ -39,6 +39,12 @@ def plot_calendar_vitals(hours=24, out_file=None, include_all_day=False):
 
     service = get_service()
     user_tz = get_user_tz()
+    
+    # Get units from catalog
+    catalog = get_catalog()
+    hr_meta = next((m for m in catalog if m.get('id') == 'HeartRate'), {})
+    hr_unit = hr_meta.get('unit', 'bpm')
+    
     end = datetime.now(timezone.utc)
     start = end - timedelta(hours=hours)
 
@@ -114,7 +120,7 @@ def plot_calendar_vitals(hours=24, out_file=None, include_all_day=False):
         time_str = f"{start_dt.strftime('%I:%M %p')} - {end_dt.strftime('%I:%M %p')}"
         
         cal_tag = f"[{ev['calendar_name']}] " if ev.get('calendar_name') else ""
-        ax.set_title(f"{cal_tag}{ev['title']} ({time_str})  |  Avg: {avg_hr:.0f}  Max: {max_hr:.0f}  Min: {min_hr:.0f}", 
+        ax.set_title(f"{cal_tag}{ev['title']} ({time_str})  |  Avg: {avg_hr:.0f} {hr_unit}  Max: {max_hr:.0f} {hr_unit}  Min: {min_hr:.0f} {hr_unit}", 
                      color=TEXT, pad=10, loc='left', fontsize=11)
                      
         ax.tick_params(colors=SUBTEXT, labelsize=9)

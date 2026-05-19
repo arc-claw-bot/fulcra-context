@@ -199,6 +199,40 @@ def fetch_location_visits(start_date: str, end_date: str) -> Optional[list]:
     return None
 
 
+def fetch_calendars() -> Optional[list]:
+    """Fetch all calendars from a Fulcra CLI if one is available."""
+    attempts = []
+    for base in _command_parts():
+        attempts.extend(
+            [
+                [*base, "calendars"],
+            ]
+        )
+
+    for args in attempts:
+        payload = _run_cli(args)
+        cals = _extract_list(payload, ("calendars", "data", "items", "results"))
+        if cals is not None:
+            return cals
+    return None
+
+def fetch_catalog() -> Optional[list]:
+    """Fetch the data catalog from a Fulcra CLI if one is available."""
+    attempts = []
+    for base in _command_parts():
+        attempts.extend(
+            [
+                [*base, "catalog"],
+            ]
+        )
+
+    for args in attempts:
+        payload = _run_cli(args)
+        cat = _extract_list(payload, ("catalog", "data", "items", "results"))
+        if cat is not None:
+            return cat
+    return None
+
 def fetch_user_info() -> Optional[dict]:
     """Fetch Fulcra user profile/preferences from a CLI if one is available."""
     attempts = []
