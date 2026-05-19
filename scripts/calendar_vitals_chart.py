@@ -153,14 +153,24 @@ def plot_calendar_vitals(hours=24, out_file=None, include_all_day=False, metric=
         # Localize times for the title
         start_dt = to_local(datetime.fromisoformat(ev['start'].replace("Z", "+00:00")))
         end_dt = to_local(datetime.fromisoformat(ev['end'].replace("Z", "+00:00")))
+        
+        date_str = start_dt.strftime('%B %-d, %Y')
         time_str = f"{start_dt.strftime('%I:%M %p')} - {end_dt.strftime('%I:%M %p')}"
         
         cal_tag = f"[{ev['calendar_name']}] " if ev.get('calendar_name') else ""
         
         # If values are floats like 85.0 for HeartRate, 0f is fine, but HRV might need 1f. Let's format conditionally.
         fmt = ".1f" if isinstance(avg_val, float) and avg_val < 50 else ".0f"
-        ax.set_title(f"{cal_tag}{ev['title']} ({time_str})  |  Avg: {avg_val:{fmt}}{metric_unit}  Max: {max_val:{fmt}}{metric_unit}  Min: {min_val:{fmt}}{metric_unit}", 
-                     color=TEXT, pad=10, loc='left', fontsize=11)
+        stats_str = f"Avg: {avg_val:{fmt}}{metric_unit}  Max: {max_val:{fmt}}{metric_unit}  Min: {min_val:{fmt}}{metric_unit}"
+        
+        title_line1 = f"{cal_tag}{ev['title']}"
+        title_line2 = f"{date_str}  •  {time_str}    |    {stats_str}"
+        
+        ax.set_title(title_line1, color='#ffffff', pad=24, loc='left', fontsize=13, fontweight='bold')
+        ax.annotate(title_line2, 
+                    xy=(0, 1), xytext=(0, 8), 
+                    xycoords='axes fraction', textcoords='offset points', 
+                    color=SUBTEXT, fontsize=10, ha='left', va='bottom')
                      
         ax.tick_params(colors=SUBTEXT, labelsize=9)
         for spine in ax.spines.values():
