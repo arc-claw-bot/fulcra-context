@@ -102,6 +102,8 @@ def _extract_list(payload: Any, keys: Iterable[str]) -> Optional[list]:
 def _run_cli_public(args: list[str]) -> Optional[Any]:
     """Public wrapper to execute arbitrary CLI commands."""
     return _run_cli(args)
+
+def fetch_metric_samples(start_date: str, end_date: str, metric_name: str) -> Optional[list]:
     """Fetch raw metric samples from a Fulcra CLI if one is available."""
     attempts = []
     for base in _command_parts():
