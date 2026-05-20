@@ -88,12 +88,12 @@ if __name__ == "__main__":
     parser.add_argument("--out", type=str, default="/tmp/third_space_map.png", help="Output path for the PNG map.")
     args = parser.parse_args()
 
-    # Hardcoded POC data for now; in a real flow this would parse JSON from the analyzer
+    # Synthetic POC data 
     data = [
-        {"name": "J Alexander's", "lat": 42.529, "lon": -83.361, "hr": 82.6},
-        {"name": "Como's", "lat": 42.461, "lon": -83.134, "hr": 87.9},
-        {"name": "Westborn Market", "lat": 42.494, "lon": -83.164, "hr": 91.1},
-        {"name": "Rackham Golf", "lat": 42.478, "lon": -83.172, "hr": 105.0}
+        {"name": "Location Alpha", "lat": 42.500, "lon": -83.300, "hr": 82.6},
+        {"name": "Location Beta", "lat": 42.450, "lon": -83.100, "hr": 87.9},
+        {"name": "Location Gamma", "lat": 42.490, "lon": -83.150, "hr": 91.1},
+        {"name": "Location Delta", "lat": 42.470, "lon": -83.170, "hr": 105.0}
     ]
     
     generate_map(data, args.out)

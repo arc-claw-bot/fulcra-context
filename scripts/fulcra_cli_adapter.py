@@ -31,8 +31,7 @@ def _command_parts() -> list[list[str]]:
     if explicit:
         return [shlex.split(explicit)]
 
-    # Temporary fallback for POC
-    return [shlex.split("uv tool run 'git+https://github.com/fulcradynamics/fulcra-api-python.git@add-cli'")]
+    return [[name] for name in CLI_CANDIDATES if shutil.which(name)]
 
 
 def _parse_json_payload(stdout: str) -> Optional[Any]:
@@ -99,6 +98,10 @@ def _extract_list(payload: Any, keys: Iterable[str]) -> Optional[list]:
                 return value
     return None
 
+
+def _run_cli_public(args: list[str]) -> Optional[Any]:
+    """Public wrapper to execute arbitrary CLI commands."""
+    return _run_cli(args)
 
 def fetch_metric_samples(start_date: str, end_date: str, metric_name: str) -> Optional[list]:
     """Fetch raw metric samples from a Fulcra CLI if one is available."""
