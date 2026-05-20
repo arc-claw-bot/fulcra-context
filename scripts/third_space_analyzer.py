@@ -43,10 +43,12 @@ class ScheduleTemplate:
         return True
 
 def fetch_cli_json(cmd_args: List[str]) -> List[Dict[str, Any]]:
-    base_cmd_env = os.environ.get("FULCRA_CLI_COMMAND", "uv tool run 'git+https://github.com/fulcradynamics/fulcra-api-python.git@add-cli'")
+    # Instead of raw _run_cli, we build the command locally using the explicit ENV fallback
+    # to avoid breaking the core adapter, but still leverage our public wrapper.
+    base_cmd_env = os.environ.get("FULCRA_CLI_COMMAND", "fulcra-api")
     base_cmd = shlex.split(base_cmd_env)
     cmd = [*base_cmd, *cmd_args]
-    payload = fulcra_cli_adapter._run_cli(cmd)
+    payload = fulcra_cli_adapter._run_cli_public(cmd)
     if payload is None:
         return []
     return payload if isinstance(payload, list) else [payload]
@@ -188,10 +190,15 @@ def main():
         avg_hrv = sum(stats["hrv_values"]) / len(stats["hrv_values"]) if stats["hrv_values"] else None
         
         score = 0
+        
+        # Normalize the deltas to percentage shifts so they can be mathematically combined
         if avg_hr and hr_baseline:
-            score -= (avg_hr - hr_baseline) # Lower HR is better (adds to score)
+            hr_pct_delta = ((hr_baseline - avg_hr) / hr_baseline) * 100 
+            score += hr_pct_delta # Dropping HR 10% below baseline adds +10 to score
+            
         if avg_hrv and hrv_baseline:
-            score += (avg_hrv - hrv_baseline) # Higher HRV is better (adds to score)
+            hrv_pct_delta = ((avg_hrv - hrv_baseline) / hrv_baseline) * 100
+            score += hrv_pct_delta # Raising HRV 10% above baseline adds +10 to score
             
         stats["avg_hr"] = avg_hr
         stats["avg_hrv"] = avg_hrv
