@@ -157,8 +157,22 @@ def main():
             if offset >= 0:
                 moments.append({"val": val, "secondsIntoMeeting": offset, "utc_time": ts.isoformat()})
 
-    top_moments = sorted(moments, key=lambda x: x["val"], reverse=True)[:5]
-    top_moments = sorted(top_moments, key=lambda x: x["secondsIntoMeeting"])
+    sorted_moments = sorted(moments, key=lambda x: x["val"], reverse=True)
+    distinct_moments = []
+    
+    # Enforce at least a 3-minute (180s) gap between spikes
+    for m in sorted_moments:
+        too_close = False
+        for dm in distinct_moments:
+            if abs(m["secondsIntoMeeting"] - dm["secondsIntoMeeting"]) < 180:
+                too_close = True
+                break
+        if not too_close:
+            distinct_moments.append(m)
+        if len(distinct_moments) >= 5:
+            break
+            
+    top_moments = sorted(distinct_moments, key=lambda x: x["secondsIntoMeeting"])
 
     output_data = {
         "meeting_title": title,
