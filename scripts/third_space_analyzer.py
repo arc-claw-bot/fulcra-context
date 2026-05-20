@@ -20,6 +20,7 @@ from math import radians, cos, sin, asin, sqrt
 from typing import List, Dict, Any, Optional
 
 import fulcra_cli_adapter
+from weather_provider import WeatherProvider
 
 def haversine(lon1: float, lat1: float, lon2: float, lat2: float) -> float:
     lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
@@ -78,7 +79,15 @@ def main():
     parser_obj.add_argument("--range", type=str, default="14 days")
     args = parser_obj.parse_args()
 
+
     schedule = ScheduleTemplate(args.template)
+    
+    weather_provider = WeatherProvider()
+    if not weather_provider.is_configured():
+        print("\n[!] NOTE: WEATHER_API_KEY environment variable is not set.")
+        print("[!] Environmental context (Temperature/Conditions) will be skipped.")
+        print("[!] To enable this, get a free key at https://www.weatherapi.com/ and set it.\n")
+
     
     # Calculate Baselines first
     hr_baseline = get_temporal_baseline(args.range, schedule, "HeartRate")
@@ -155,7 +164,14 @@ def main():
         hrv_series = fulcra_cli_adapter.fetch_metric_time_series(start_iso, end_iso, "HeartRateVariabilitySDNN", 60, "mean")
         
         stay["avg_hr"] = sum([v for i in (hr_series or []) for k,v in i.items() if k!='time' and isinstance(v, (int,float))]) / len([v for i in (hr_series or []) for k,v in i.items() if k!='time' and isinstance(v, (int,float))]) if hr_series and [v for i in hr_series for k,v in i.items() if k!='time' and isinstance(v, (int,float))] else None
+
         stay["avg_hrv"] = sum([v for i in (hrv_series or []) for k,v in i.items() if k!='time' and isinstance(v, (int,float))]) / len([v for i in (hrv_series or []) for k,v in i.items() if k!='time' and isinstance(v, (int,float))]) if hrv_series and [v for i in hrv_series for k,v in i.items() if k!='time' and isinstance(v, (int,float))] else None
+
+        # Fetch Weather
+        midpoint = stay["start"] + (stay["end"] - stay["start"]) / 2
+        weather = weather_provider.get_historical_weather(stay["grid_key"][0], stay["grid_key"][1], midpoint)
+        stay["weather"] = weather
+
 
     location_stats = {}
     for stay in stays:
@@ -165,8 +181,14 @@ def main():
         
         location_stats[gk]["total_seconds"] += (stay["end"] - stay["start"]).total_seconds() + 900
         location_stats[gk]["stay_count"] += 1
+
         if stay["avg_hr"] is not None: location_stats[gk]["hr_values"].append(stay["avg_hr"])
         if stay["avg_hrv"] is not None: location_stats[gk]["hrv_values"].append(stay["avg_hrv"])
+        if stay.get("weather"): 
+            if "weather_conditions" not in location_stats[gk]:
+                location_stats[gk]["weather_conditions"] = []
+            location_stats[gk]["weather_conditions"].append(stay["weather"])
+
 
     # Calculate Recovery Score
     for gk, stats in location_stats.items():
@@ -198,6 +220,24 @@ def main():
         hrv_delta = f"({stats['avg_hrv'] - hrv_baseline:+.1f})" if stats['avg_hrv'] and hrv_baseline else ""
         
         print(f"Heart Rate: {hr_str} {hr_delta} | HRV: {hrv_str} {hrv_delta}")
+        
+        if stats.get("weather_conditions"):
+            # Get the most common condition and average temp
+            temps = [w["temp_f"] for w in stats["weather_conditions"] if w.get("temp_f")]
+            conds = [w["condition"] for w in stats["weather_conditions"] if w.get("condition")]
+            
+            avg_temp = sum(temps) / len(temps) if temps else None
+            
+            # Count manually to avoid UnboundLocalError with inner Counter imports
+            cond_counts = {}
+            for c in conds:
+                cond_counts[c] = cond_counts.get(c, 0) + 1
+            
+            common_cond = max(cond_counts, key=cond_counts.get) if cond_counts else "Unknown"
+            
+            if avg_temp:
+                print(f"Optimal Conditions: {avg_temp:.1f}F | {common_cond}")
+                
         print(f"Recovery Score: {stats['recovery_score']:.1f}")
         print("---")
 
