@@ -23,10 +23,10 @@ except ImportError:
 def extract_docx_text(file_path):
     with zipfile.ZipFile(file_path) as docx:
         xml_content = docx.read('word/document.xml')
-        
+
     tree = ET.fromstring(xml_content)
     ns = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
-    
+
     text_content = []
     for paragraph in tree.findall('.//w:p', ns):
         para_text = []
@@ -36,13 +36,13 @@ def extract_docx_text(file_path):
                 para_text.append(text_node.text)
         if para_text:
             text_content.append(''.join(para_text))
-            
+
     return text_content
 
 def parse_transcript(lines):
     title = lines[0] if len(lines) > 0 else "Unknown Meeting"
     date_str = lines[1] if len(lines) > 1 else ""
-    
+
     start_time = None
     if date_str and '•' in date_str:
         date_part = date_str.split('•')[0].strip()
@@ -55,15 +55,15 @@ def parse_transcript(lines):
     current_speaker = None
     current_offset_seconds = 0
     current_text = []
-    
+
     speaker_time_regex = re.compile(r'^([a-zA-Z0-9\s.\(\)-]+?)\s+((\d+:)?\d+:\d+)$')
     in_transcript = False
-    
+
     for line in lines:
         line = line.strip()
         if not line:
             continue
-            
+
         if not in_transcript:
             if line.startswith("SPEAKERS") or "SUMMARY KEYWORDS" in line:
                 continue
@@ -72,7 +72,7 @@ def parse_transcript(lines):
                 in_transcript = True
             else:
                 continue
-            
+
         match = speaker_time_regex.match(line)
         if match:
             if current_speaker:
@@ -82,7 +82,7 @@ def parse_transcript(lines):
                     "text": " ".join(current_text).strip()
                 })
             current_speaker = match.group(1)
-            
+
             time_str = match.group(2)
             parts = time_str.split(':')
             parts.reverse()
@@ -91,20 +91,20 @@ def parse_transcript(lines):
                 seconds += int(parts[1]) * 60
             if len(parts) > 2:
                 seconds += int(parts[2]) * 3600
-                
+
             current_offset_seconds = seconds
             current_text = []
         else:
             if current_speaker:
                 current_text.append(line)
-                
+
     if current_speaker:
         utterances.append({
             "speaker": current_speaker.strip(),
             "offsetSeconds": current_offset_seconds,
             "text": " ".join(current_text).strip()
         })
-        
+
     return title, start_time, utterances
 
 def main():
@@ -115,7 +115,7 @@ def main():
 
     service = get_service()
     user_tz = get_user_tz()
-    
+
     catalog = get_catalog()
     metric_meta = next((m for m in catalog if m.get('id') == args.metric), {})
     metric_col = metric_meta.get('column_name', 'heart_rate')
@@ -126,27 +126,27 @@ def main():
     except Exception as e:
         print(f"Error extracting docx: {e}")
         sys.exit(1)
-        
+
     title, start_time, utterances = parse_transcript(lines)
     if not utterances or not start_time:
         print("Error: Failed to parse utterances or start time.")
         sys.exit(1)
-        
+
     if start_time.tzinfo is None:
         start_time = start_time.replace(tzinfo=user_tz)
-    
+
     duration_seconds = utterances[-1]['offsetSeconds'] + 60
     end_time = start_time + timedelta(seconds=duration_seconds)
-    
+
     m_start = start_time.astimezone(timezone.utc).isoformat()
     m_end = end_time.astimezone(timezone.utc).isoformat()
-    
+
     metric_series = service.get_metric_time_series(m_start, m_end, args.metric, sample_rate=1, agg_function="mean")
-    
+
     if not metric_series:
         print(json.dumps({"error": f"No {args.metric} data found during this meeting ({m_start} to {m_end})."}))
         sys.exit(1)
-        
+
     moments = []
     for pt in metric_series:
         val = pt.get(val_key) or pt.get(metric_col)
@@ -156,10 +156,24 @@ def main():
             offset = (ts - start_time.astimezone(timezone.utc)).total_seconds()
             if offset >= 0:
                 moments.append({"val": val, "secondsIntoMeeting": offset, "utc_time": ts.isoformat()})
-            
-    top_moments = sorted(moments, key=lambda x: x["val"], reverse=True)[:5]
-    top_moments = sorted(top_moments, key=lambda x: x["secondsIntoMeeting"])
+
+    sorted_moments = sorted(moments, key=lambda x: x["val"], reverse=True)
+    distinct_moments = []
     
+    # Enforce at least a 3-minute (180s) gap between spikes
+    for m in sorted_moments:
+        too_close = False
+        for dm in distinct_moments:
+            if abs(m["secondsIntoMeeting"] - dm["secondsIntoMeeting"]) < 180:
+                too_close = True
+                break
+        if not too_close:
+            distinct_moments.append(m)
+        if len(distinct_moments) >= 5:
+            break
+            
+    top_moments = sorted(distinct_moments, key=lambda x: x["secondsIntoMeeting"])
+
     output_data = {
         "meeting_title": title,
         "start_time_utc": m_start,
@@ -167,23 +181,23 @@ def main():
         "metric": args.metric,
         "spikes": []
     }
-    
+
     for moment in top_moments:
         # Get surrounding context (60s before, 60s after)
         target_sec = moment["secondsIntoMeeting"]
         context_utterances = [
-            u for u in utterances 
+            u for u in utterances
             if u["offsetSeconds"] >= target_sec - 60 and u["offsetSeconds"] <= target_sec + 60
         ]
-        
+
         # Capture the high-resolution 1-second sample data around the spike (e.g., 30s before and after)
         local_series = [
             pt for pt in metric_series
-            if pt.get("time") and 
-               abs((datetime.fromisoformat(pt["time"].replace("Z", "+00:00")) - 
+            if pt.get("time") and
+               abs((datetime.fromisoformat(pt["time"].replace("Z", "+00:00")) -
                    datetime.fromisoformat(moment["utc_time"].replace("Z", "+00:00"))).total_seconds()) <= 30
         ]
-        
+
         # Clean up the series format for the output
         clean_series = []
         for pt in local_series:
@@ -193,7 +207,7 @@ def main():
                     "time": pt["time"],
                     "value": val
                 })
-        
+
         output_data["spikes"].append({
             "utc_time": moment["utc_time"],
             "offset_seconds": target_sec,
@@ -201,7 +215,7 @@ def main():
             "context_transcript": context_utterances,
             "metric_series_window": clean_series
         })
-        
+
     print(json.dumps(output_data, indent=2))
 
 if __name__ == "__main__":
