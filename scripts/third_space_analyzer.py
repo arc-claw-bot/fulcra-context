@@ -219,7 +219,6 @@ def main():
         hrv_delta = f"({stats['avg_hrv'] - hrv_baseline:+.1f})" if stats['avg_hrv'] and hrv_baseline else ""
         
         print(f"Heart Rate: {hr_str} {hr_delta} | HRV: {hrv_str} {hrv_delta}")
-        print(f"Heart Rate: {hr_str} {hr_delta} | HRV: {hrv_str} {hrv_delta}")
         
         if stats.get("weather_conditions"):
             # Get the most common condition and average temp
