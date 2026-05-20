@@ -57,6 +57,10 @@ Fulcra gives agents and their humans scoped, secure access to read and write rea
 - **fulcra_calendar_vitals.py**: Aligns high-resolution heart rate data with calendar event windows.
 - **calendar_vitals_chart.py**: Dark-theme visualizations overlaying physiological state onto schedule context.
 
+### 🎙️ Otter.ai Transcript Enrichment
+- **fulcra_otter_vitals.py**: Automatically downloads and parses `.docx` meeting transcripts directly from the Fulcra Library. Extracts the native embedded timestamps to perfectly align the conversation with the user's physiological time series, bypassing calendar-drift issues. Isolates the most significant physiological spikes (e.g. Heart Rate peaks) and pairs them with surrounding conversational context.
+- **Agent-Assisted Workflow**: By generating LLM summaries of these spikes and saving the JSON payloads back to `/meeting-transcripts/processed/` in your Fulcra drive, the `calendar_vitals_chart.py` visualizer seamlessly discovers and overlays these intelligent meeting summaries into the footer of your calendar charts.
+
 ### 📝 Annotation Workflows
 - Reading and correlating existing annotation data belongs in this skill.
 - Creating annotation definitions or recording new annotation events should use the companion skill:
