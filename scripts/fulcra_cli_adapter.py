@@ -31,7 +31,8 @@ def _command_parts() -> list[list[str]]:
     if explicit:
         return [shlex.split(explicit)]
 
-    return [[name] for name in CLI_CANDIDATES if shutil.which(name)]
+    # Temporary fallback for POC
+    return [shlex.split("uv tool run 'git+https://github.com/fulcradynamics/fulcra-api-python.git@add-cli'")]
 
 
 def _parse_json_payload(stdout: str) -> Optional[Any]:
@@ -196,6 +197,24 @@ def fetch_location_visits(start_date: str, end_date: str) -> Optional[list]:
         visits = _extract_list(payload, ("visits", "location_visits", "data", "items", "results"))
         if visits is not None:
             return visits
+    return None
+
+
+def fetch_location_time_series(start_date: str, end_date: str, sample_rate: int = 900, reverse_geocode: bool = False) -> Optional[list]:
+    """Fetch location time series from a Fulcra CLI if one is available."""
+    attempts = []
+    for base in _command_parts():
+        cmd = [*base, "location-time-series", "--sample-rate", str(sample_rate)]
+        if reverse_geocode:
+            cmd.append("--reverse-geocode")
+        cmd.extend([start_date, end_date])
+        attempts.append(cmd)
+
+    for args in attempts:
+        payload = _run_cli(args)
+        series = _extract_list(payload, ("series", "data", "items", "results"))
+        if series is not None:
+            return series
     return None
 
 
