@@ -3,7 +3,7 @@
 
 The adapter is intentionally conservative:
 - Prefer an explicit CLI command from `FULCRA_CLI_COMMAND` when present.
-- Otherwise probe a few common command names on PATH.
+- Otherwise prefer the uv tool invocation, then probe a few common command names on PATH.
 - Try a small set of JSON-oriented argument shapes.
 - Return `None` when the CLI is absent or does not speak the expected shape.
 
@@ -23,7 +23,7 @@ from typing import Any, Iterable, Optional
 
 
 CLI_ENV = "FULCRA_CLI_COMMAND"
-CLI_CANDIDATES = ("fulcra-api", "fulcra", "fulcra-cli", "fulcracli")
+CLI_CANDIDATES = ("uv tool run fulcra-api", "fulcra-api", "fulcra", "fulcra-cli", "fulcracli")
 
 
 def _command_parts() -> list[list[str]]:
@@ -31,7 +31,12 @@ def _command_parts() -> list[list[str]]:
     if explicit:
         return [shlex.split(explicit)]
 
-    return [[name] for name in CLI_CANDIDATES if shutil.which(name)]
+    commands = []
+    for candidate in CLI_CANDIDATES:
+        parts = shlex.split(candidate)
+        if parts and shutil.which(parts[0]):
+            commands.append(parts)
+    return commands
 
 
 def _parse_json_payload(stdout: str) -> Optional[Any]:
@@ -256,7 +261,7 @@ def fetch_catalog() -> Optional[list]:
     return None
 
 def fetch_library_files(path: str) -> Optional[list]:
-    """List files in the Fulcra Library via the CLI file-commands branch."""
+    """List files in the Fulcra Library via the CLI file commands."""
     attempts = []
     for base in _command_parts():
         attempts.extend([

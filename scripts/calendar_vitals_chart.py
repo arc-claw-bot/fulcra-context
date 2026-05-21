@@ -179,6 +179,8 @@ def plot_calendar_vitals(hours=24, out_file=None, include_all_day=False, metric=
         # Override CLI command temporarily for file fetch if needed
         import os
         old_cmd = os.environ.get("FULCRA_CLI_COMMAND")
+        # Stable `uv tool run fulcra-api` does not expose file list/download yet.
+        # Keep the file-command override scoped to transcript overlay fetches.
         os.environ["FULCRA_CLI_COMMAND"] = "uv tool run git+https://git@github.com/fulcradynamics/fulcra-api-python.git@file-commands"
 
         annotations = []

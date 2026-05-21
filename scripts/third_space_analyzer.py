@@ -45,7 +45,7 @@ class ScheduleTemplate:
 def fetch_cli_json(cmd_args: List[str]) -> List[Dict[str, Any]]:
     # Instead of raw _run_cli, we build the command locally using the explicit ENV fallback
     # to avoid breaking the core adapter, but still leverage our public wrapper.
-    base_cmd_env = os.environ.get("FULCRA_CLI_COMMAND", "fulcra-api")
+    base_cmd_env = os.environ.get("FULCRA_CLI_COMMAND", "uv tool run fulcra-api")
     base_cmd = shlex.split(base_cmd_env)
     cmd = [*base_cmd, *cmd_args]
     payload = fulcra_cli_adapter._run_cli_public(cmd)
