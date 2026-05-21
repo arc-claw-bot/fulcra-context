@@ -64,44 +64,44 @@ Also tested with: Goose, Windsurf, VS Code. Open source: [github.com/fulcradynam
 The Fulcra CLI is the preferred interface for new skills, scheduled jobs, and repeatable workflows. It requires Python 3.11+, `uv`, and `jq`.
 
 ```bash
-fulcra-api --help
+uv tool run fulcra-api --help
 ```
 
 Authenticate once with the CLI:
 
 ```bash
-fulcra-api auth login
+uv tool run fulcra-api auth login
 ```
 
 #### Remote/chat auth
 
 Agents often run on a server while the user is interacting through a separate channel. Do not assume the browser on the agent host is the user's browser.
 
-When `fulcra-api auth login` prints a device authorization URL and user code:
+When `uv tool run fulcra-api auth login` prints a device authorization URL and user code:
 
 1. Keep the CLI process running so it can poll for completion.
 2. Send the short-lived device URL and code to the intended user through the active trusted user channel.
 3. Do not send access tokens, refresh tokens, credential files, raw private records, or direct capability URLs.
 4. The user opens the URL on any device, confirms the displayed code, and approves access.
-5. Verify completion with a non-token command such as `fulcra-api user-info`.
+5. Verify completion with a non-token command such as `uv tool run fulcra-api user-info`.
 
 If the CLI also opens a browser on the agent host, ignore that local browser unless the user is actually on that machine. The device URL/code flow is the portable path for remote agents.
 
 This creates `~/.config/fulcra/credentials.json`. The CLI refreshes access tokens as needed. The beta CLI currently exposes these JSON-output commands:
 
 ```bash
-fulcra-api catalog
-fulcra-api get-records HeartRate "1 day"
-fulcra-api metric-time-series HeartRate "1 day"
-fulcra-api sleep-stages "12 hours"
-fulcra-api sleep-cycles "1 week"
-fulcra-api calendar-events "1 day"
-fulcra-api apple-workouts "1 week"
-fulcra-api location-at-time "2026-05-05T12:00:00Z"
-fulcra-api user-info
+uv tool run fulcra-api catalog
+uv tool run fulcra-api get-records HeartRate "1 day"
+uv tool run fulcra-api metric-time-series HeartRate "1 day"
+uv tool run fulcra-api sleep-stages "12 hours"
+uv tool run fulcra-api sleep-cycles "1 week"
+uv tool run fulcra-api calendar-events "1 day"
+uv tool run fulcra-api apple-workouts "1 week"
+uv tool run fulcra-api location-at-time "2026-05-05T12:00:00Z"
+uv tool run fulcra-api user-info
 ```
 
-For automation, use the CLI-first adapter/service layer rather than hand-rolling `subprocess` calls. Set `FULCRA_CLI_COMMAND` only when the `fulcra-api` binary is not on PATH.
+For automation, use the CLI-first adapter/service layer rather than hand-rolling `subprocess` calls. Set `FULCRA_CLI_COMMAND` only when you need to override the default `uv tool run fulcra-api` command.
 
 ### Option 3: Python Service Layer
 
@@ -133,7 +133,7 @@ This public skill does not ship token-printing helpers for chat. Authenticate wi
 ### Check sleep (last night)
 
 ```bash
-fulcra-api sleep-stages "12 hours" | jq .
+uv tool run fulcra-api sleep-stages "12 hours" | jq .
 ```
 
 ```python
@@ -152,7 +152,7 @@ sleep = api.get_metric_samples(start, end, "SleepStage")
 ### Check heart rate (recent)
 
 ```bash
-fulcra-api get-records HeartRate "2 hours" | jq .
+uv tool run fulcra-api get-records HeartRate "2 hours" | jq .
 ```
 
 ```python
@@ -168,7 +168,7 @@ avg_hr = sum(values) / len(values) if values else None
 ### Check today's calendar
 
 ```bash
-fulcra-api calendar-events "1 day" | jq .
+uv tool run fulcra-api calendar-events "1 day" | jq .
 ```
 
 ```python

@@ -8,7 +8,7 @@ Fulcra gives agents and their humans scoped, secure access to read and write rea
 
 2. **Authorize the agent**:
    ```bash
-   fulcra-api auth login
+   uv tool run fulcra-api auth login
    ```
    For remote agents, copy the printed device URL and code to the intended user through the active trusted user channel. The user can approve from any browser while the CLI keeps polling on the agent host. Never send access tokens or credential files.
 
@@ -90,7 +90,7 @@ Fulcra gives agents and their humans scoped, secure access to read and write rea
 
 ```bash
 # Override the Fulcra CLI command when the binary is not on PATH.
-export FULCRA_CLI_COMMAND="fulcra-api"
+export FULCRA_CLI_COMMAND="uv tool run fulcra-api"
 
 # Output directory (choose an app-owned writable directory)
 export FULCRA_OUTPUT_DIR=/custom/path
