@@ -1,6 +1,6 @@
 # Fulcra Context
 
-Fulcra gives agents and their humans scoped, secure access to read and write real-world context and shared human/agent memory: attention, events, location, calendar, health, wearables, and other streams. This skill is the read/context side via the Fulcra Life API, MCP server, and CLI. Use it for reusable agent integrations, and pair it with `fulcra-annotations` when an agent needs to write moments or values back.
+Fulcra gives agents and their humans scoped, secure access to user-consented context and shared human/agent memory: attention, events, activity, health, wearables, and other streams. This skill is the read/context side via the Fulcra Life API, MCP server, and CLI. Use it for reusable agent integrations, and pair it with `fulcra-annotations` when an agent needs to write user-approved moments or values back.
 
 ## Quick Start
 
@@ -53,13 +53,13 @@ Fulcra gives agents and their humans scoped, secure access to read and write rea
 - Use `fulcra_sleep_utils.py` output to compose briefings inside your agent runtime.
 - **sleep_chart.py**: Publication-ready dark-theme visualizations
 
-### 📅 Calendar Vitals Correlation
-- **fulcra_calendar_vitals.py**: Aligns high-resolution heart rate data with calendar event windows.
-- **calendar_vitals_chart.py**: Dark-theme visualizations overlaying physiological state onto schedule context.
+### Context Vitals Correlation
+- **fulcra_calendar_vitals.py**: Aligns high-resolution heart rate data with user-consented event windows.
+- **calendar_vitals_chart.py**: Dark-theme visualizations for reviewing physiological context alongside user-approved schedule context.
 
-### 🎙️ Otter.ai Transcript Enrichment
-- **fulcra_otter_vitals.py**: Automatically downloads and parses `.docx` meeting transcripts directly from the Fulcra Library. Extracts the native embedded timestamps to perfectly align the conversation with the user's physiological time series, bypassing calendar-drift issues. Isolates the most significant physiological spikes (e.g. Heart Rate peaks) and pairs them with surrounding conversational context.
-- **Agent-Assisted Workflow**: By generating LLM summaries of these spikes and saving the JSON payloads back to `/meeting-transcripts/processed/` in your Fulcra drive, the `calendar_vitals_chart.py` visualizer seamlessly discovers and overlays these intelligent meeting summaries into the footer of your calendar charts.
+### Transcript Context Enrichment
+- **fulcra_otter_vitals.py**: Parses user-provided `.docx` transcript exports from the Fulcra Library and aligns embedded timestamps with physiological time series. This is intended for private, local analysis with explicit user consent.
+- **Agent-Assisted Workflow**: Agents can summarize notable physiological context and save derived JSON payloads back to the user's Fulcra drive for local visualization. Do not publish transcripts, summaries, or raw private records without explicit permission.
 
 ### 📝 Annotation Workflows
 - Reading and correlating existing annotation data belongs in this skill.
@@ -82,7 +82,7 @@ Fulcra gives agents and their humans scoped, secure access to read and write rea
 ✅ **Sleep stage math fix**: Use authoritative `total_time_asleep_ms` (matches Apple Health)
 ✅ **UTC date selection fix**: Today's local date = correct UTC bucket for sleep data
 ✅ **Timezone-aware**: Fetches user's timezone from Fulcra, handles DST automatically
-✅ **Cross-referenced analysis**: Sleep + HRV + calendar + exercise + annotations
+✅ **Cross-referenced analysis**: Sleep + HRV + user-consented events + exercise + annotations
 ✅ **Production-ready**: 6,000+ lines of battle-tested utilities
 ✅ **Privacy-safe**: Generic paths, no hardcoded personal info, sanitized for publishing
 
