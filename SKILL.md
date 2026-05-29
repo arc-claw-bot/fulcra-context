@@ -2,7 +2,6 @@
 name: fulcra-context
 description: Access user-consented Fulcra context data including biometrics, sleep, activity, calendar, location, and the full Fulcra metric catalog via the Fulcra Life API, MCP server, and CLI. Use for read/context/analysis workflows; use the companion fulcra-annotations skill for creating or recording annotation events.
 homepage: https://fulcradynamics.com
-metadata: {"openclaw":{"emoji":"🫀","requires":{"bins":["python3","uv","jq"]},"version":"2026.05.16"}}
 ---
 
 # Fulcra Context
@@ -31,9 +30,11 @@ With Fulcra Context, agents can:
 
 Use Fulcra's hosted MCP server at `https://mcp.fulcradynamics.com/mcp` (Streamable HTTP transport, OAuth2 auth).
 
-The user needs a Fulcra account via the [Context iOS app](https://apps.apple.com/app/id1633037434) or [Portal](https://portal.fulcradynamics.com/).
+The user needs an authenticated Fulcra account, not an API key. Fulcra accounts can be created through the CLI and include 5 GB of storage free forever. Users who want biometrics, location, calendar, and other phone-collected context can install the Context iOS app, sign in with the same account, and sync data into that same free storage. The iOS app is no longer subscription gated; Android is coming soon.
 
-**Claude Desktop config** (claude_desktop_config.json):
+This skill has been tested with Hermes agent, Claude Desktop, Claude web, ChatGPT, and Codex.
+
+**Claude Desktop settings:**
 ```json
 {
   "mcpServers": {
@@ -67,7 +68,7 @@ The Fulcra CLI is the preferred interface for new skills, scheduled jobs, and re
 uv tool run fulcra-api --help
 ```
 
-Authenticate once with the CLI:
+Authenticate once with the CLI. If the user does not already have an account, the CLI auth flow can handle account creation:
 
 ```bash
 uv tool run fulcra-api auth login
@@ -77,7 +78,7 @@ uv tool run fulcra-api auth login
 
 Agents often run on a server while the user is interacting through a separate channel. Do not assume the browser on the agent host is the user's browser.
 
-When `uv tool run fulcra-api auth login` prints a device authorization URL and user code:
+When `uv tool run fulcra-api auth login` prints a device authorization URL and user code, surface both to the intended user in chat:
 
 1. Keep the CLI process running so it can poll for completion.
 2. Send the short-lived device URL and code to the intended user through the active trusted user channel.
@@ -189,9 +190,11 @@ for metric in catalog:
 
 ## Comprehensive Metrics Support (188 Total)
 
+Fulcra exposes a broad metric catalog. The category tables below list representative high-signal metrics for agent workflows; use `fulcra-api catalog metrics` or the MCP metric catalog when you need the complete current list.
+
 The fulcra-context skill now supports **ALL 188 metrics** available in the Fulcra API catalog, organized into meaningful categories:
 
-### 🫀 Cardiovascular (16 metrics)
+### 🫀 Cardiovascular examples
 | Metric | What It Tells You |
 |--------|-------------------|
 | HeartRate | Current stress/activity level |
@@ -206,7 +209,7 @@ The fulcra-context skill now supports **ALL 188 metrics** available in the Fulcr
 | WalkingHeartRate | Exercise response |
 | HeartRateRecoveryOneMinute | Post-exercise recovery |
 
-### 🫁 Respiratory (11 metrics)
+### 🫁 Respiratory examples
 | Metric | What It Tells You |
 |--------|-------------------|
 | RespiratoryRate | Breathing rate (breaths per minute) |
@@ -218,7 +221,7 @@ The fulcra-context skill now supports **ALL 188 metrics** available in the Fulcr
 | SleepingBreathingDisturbances | Overall sleep respiratory health |
 | InhalerUse | Respiratory medication tracking |
 
-### 😴 Sleep (6 metrics)
+### 😴 Sleep examples
 | Metric | What It Tells You |
 |--------|-------------------|
 | SleepStage | Sleep quality — REM, Deep, Light, Awake |
@@ -227,7 +230,7 @@ The fulcra-context skill now supports **ALL 188 metrics** available in the Fulcr
 | SleepingWristTemperature | Body temperature regulation during sleep |
 | SleepChanges | Sleep pattern disruptions |
 
-### 🏃 Activity & Exercise (13 metrics)
+### 🏃 Activity & Exercise examples
 | Metric | What It Tells You |
 |--------|-------------------|
 | StepCount | Daily movement and activity level |
@@ -242,7 +245,7 @@ The fulcra-context skill now supports **ALL 188 metrics** available in the Fulcr
 | VO2Max | Aerobic fitness capacity |
 | SixMinuteWalkDistance | Cardiovascular endurance test |
 
-### 🚶 Movement Analysis (15 metrics)
+### 🚶 Movement Analysis examples
 | Metric | What It Tells You |
 |--------|-------------------|
 | WalkingSpeed | Gait velocity and mobility |
@@ -255,7 +258,7 @@ The fulcra-context skill now supports **ALL 188 metrics** available in the Fulcr
 | RunningStrideLength | Running biomechanics |
 | CyclingSpeed, CyclingCadence, CyclingPower | Cycling performance |
 
-### 📏 Body Measurements (8 metrics)
+### 📏 Body Measurements examples
 | Metric | What It Tells You |
 |--------|-------------------|
 | Weight | Body mass tracking |
@@ -267,7 +270,7 @@ The fulcra-context skill now supports **ALL 188 metrics** available in the Fulcr
 | BodyTemperature | Core body temperature |
 | BasalBodyTemperature | Fertility and metabolic tracking |
 
-### 🍎 Nutrition (23 metrics)
+### 🍎 Nutrition examples
 | Metric | What It Tells You |
 |--------|-------------------|
 | CaloriesConsumed | Daily energy intake |
@@ -280,21 +283,21 @@ The fulcra-context skill now supports **ALL 188 metrics** available in the Fulcr
 | AlcoholicDrinksConsumed | Alcohol consumption |
 | Plus 15 additional micronutrients... |
 
-### 💊 Vitamins & Minerals (26 metrics)
+### 💊 Vitamins & Minerals examples
 | Category | Metrics Available |
 |----------|-------------------|
 | Vitamins | A, B6, B12, C, D, E, K, Biotin, Folate, Niacin, etc. |
 | Minerals | Calcium, Iron, Magnesium, Potassium, Zinc, etc. |
 | Trace Elements | Chromium, Copper, Iodine, Manganese, etc. |
 
-### 🩸 Blood & Lab Values (3 metrics)
+### 🩸 Blood & Lab Values examples
 | Metric | What It Tells You |
 |--------|-------------------|
 | BloodGlucose | Blood sugar monitoring |
 | BloodAlcoholContent | Alcohol levels |
 | InsulinUnitsDelivered | Diabetes management |
 
-### 🤰 Reproductive Health (15 metrics)
+### 🤰 Reproductive Health examples
 | Metric | What It Tells You |
 |--------|-------------------|
 | MenstrualFlow | Cycle tracking |
@@ -304,7 +307,7 @@ The fulcra-context skill now supports **ALL 188 metrics** available in the Fulcr
 | ContraceptiveUse | Birth control tracking |
 | Plus 10 additional reproductive metrics... |
 
-### 🤒 Symptoms & Events (30 metrics)
+### 🤒 Symptoms & Events examples
 | Category | Symptoms Tracked |
 |----------|------------------|
 | Pain | Headache, back pain, abdominal cramps, etc. |
@@ -313,7 +316,7 @@ The fulcra-context skill now supports **ALL 188 metrics** available in the Fulcr
 | Neurological | Dizziness, fainting, memory lapse |
 | General | Fatigue, fever, chills, etc. |
 
-### 🌍 Environmental (9 metrics)
+### 🌍 Environmental examples
 | Metric | What It Tells You |
 |--------|-------------------|
 | EnvironmentalAudioLevel | Noise exposure monitoring |
@@ -322,7 +325,7 @@ The fulcra-context skill now supports **ALL 188 metrics** available in the Fulcr
 | WaterTemperature | Swimming/bathing conditions |
 | UnderwaterDepth | Diving activity tracking |
 
-### 🧘 Wellness Events (7 metrics)
+### 🧘 Wellness Events examples
 | Metric | What It Tells You |
 |--------|-------------------|
 | HandwashingEvent | Hygiene habit tracking |
@@ -331,7 +334,7 @@ The fulcra-context skill now supports **ALL 188 metrics** available in the Fulcr
 | MoodChanges | Emotional state tracking |
 | AppetiteChange | Eating behavior patterns |
 
-### 🏊 Sports-Specific (13 metrics)
+### 🏊 Sports-Specific examples
 | Activity | Metrics Available |
 |----------|-------------------|
 | Swimming | Stroke count, distance, underwater depth |
@@ -571,7 +574,7 @@ export FULCRA_OUTPUT_DIR=/custom/path
 export CONTEXT_DIR=/custom/context/path
 
 # User timezone override (default: from Fulcra API)
-export OPENCLAW_TIMEZONE=America/New_York
+export FULCRA_TIMEZONE=America/New_York
 ```
 
 ## Deployment Patterns

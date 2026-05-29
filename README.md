@@ -4,13 +4,15 @@ Fulcra gives agents and their humans scoped, secure access to user-consented con
 
 ## Quick Start
 
-1. **Setup Fulcra account**: Download [Context iOS app](https://apps.apple.com/app/id1633037434) or visit [Portal](https://portal.fulcradynamics.com/)
+1. **Setup Fulcra account**: Create or sign in to a Fulcra account through the CLI auth flow. Accounts include 5 GB of storage free forever. No API key is required.
 
 2. **Authorize the agent**:
    ```bash
    uv tool run fulcra-api auth login
    ```
-   For remote agents, copy the printed device URL and code to the intended user through the active trusted user channel. The user can approve from any browser while the CLI keeps polling on the agent host. Never send access tokens or credential files.
+   For remote agents, surface the printed device URL and code to the intended user in chat through the active trusted user channel. The user can approve from any browser while the CLI keeps polling on the agent host. Never send access tokens or credential files.
+
+   Users who want biometrics, location, calendar, and other phone-collected context can install the [Context iOS app](https://apps.apple.com/app/id1633037434) and sign in with the same account. The app uses the same 5 GB free storage and is no longer subscription gated. Android is coming soon.
 
 3. **Check last night's sleep**:
    ```python
@@ -85,6 +87,7 @@ Fulcra gives agents and their humans scoped, secure access to user-consented con
 ✅ **Cross-referenced analysis**: Sleep + HRV + user-consented events + exercise + annotations
 ✅ **Production-ready**: 6,000+ lines of battle-tested utilities
 ✅ **Privacy-safe**: Generic paths, no hardcoded personal info, sanitized for publishing
+✅ **Agent-tested**: Tested with Hermes agent, Claude Desktop, Claude web, ChatGPT, and Codex
 
 ## Environment Variables
 
@@ -99,7 +102,7 @@ export FULCRA_OUTPUT_DIR=/custom/path
 export CONTEXT_DIR=/custom/context/path
 
 # Timezone override (default: from Fulcra API)
-export OPENCLAW_TIMEZONE=America/New_York
+export FULCRA_TIMEZONE=America/New_York
 ```
 
 ## Cron Jobs
