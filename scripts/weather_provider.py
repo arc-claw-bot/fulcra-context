@@ -21,7 +21,7 @@ class WeatherProvider:
         
         # We request data for the specific coordinate and date
         url = f"{self.base_url}/{lat},{lon}/{date_str}?key={self.api_key}&include=hours&unitGroup=us&contentType=json"
-        req = urllib.request.Request(url, headers={'User-Agent': '(fulcradynamics.com, openclaw-agent)'})
+        req = urllib.request.Request(url, headers={'User-Agent': '(fulcradynamics.com, fulcra-agent)'})
         
         try:
             with urllib.request.urlopen(req, timeout=10) as response:

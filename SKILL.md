@@ -437,7 +437,7 @@ For creating annotation definitions or recording new annotation events, install 
 Install the companion write-focused skill from ClawHub:
 
 ```bash
-openclaw skills install fulcra-annotations
+Install the `fulcra-annotations` skill from ClawHub
 ```
 
 Recommended boundary:

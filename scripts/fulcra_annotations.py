@@ -21,7 +21,7 @@ try:
     LOCAL_TZ = get_user_tz()
 except Exception:
     import zoneinfo
-    LOCAL_TZ = zoneinfo.ZoneInfo(os.environ.get("OPENCLAW_TIMEZONE", "America/New_York"))
+    LOCAL_TZ = zoneinfo.ZoneInfo(os.environ.get("FULCRA_TIMEZONE", "America/New_York"))
 
 
 def get_api():

@@ -70,7 +70,7 @@ def get_user_tz(client=None) -> ZoneInfo:
     1. In-memory cache (fastest, same session)
     2. Disk cache (same day)
     3. Fulcra CLI user-info or provided client get_user_info() → preferences.timezone
-    4. OPENCLAW_TIMEZONE env var
+    4. FULCRA_TIMEZONE env var
     5. Fallback: America/New_York (last resort, logs warning)
     
     Returns:
@@ -100,7 +100,7 @@ def get_user_tz(client=None) -> ZoneInfo:
     
     # 4. Environment variable
     if not tz_name:
-        tz_name = os.environ.get('OPENCLAW_TIMEZONE')
+        tz_name = os.environ.get('FULCRA_TIMEZONE')
     
     # 5. Fallback
     if not tz_name:
