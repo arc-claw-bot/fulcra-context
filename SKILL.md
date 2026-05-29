@@ -1,40 +1,38 @@
 ---
 name: fulcra-context
-description: Access user-consented Fulcra context data including biometrics, sleep, activity, calendar, location, and the full Fulcra metric catalog via the Fulcra Life API, MCP server, and CLI. Use for read/context/analysis workflows; use the companion fulcra-annotations skill for creating or recording annotation events.
+description: Access user-consented Fulcra context data including biometrics, sleep, activity, calendar, location, and the Fulcra metric catalog through the hosted MCP server or Fulcra CLI. Use for bounded read/context workflows only; use fulcra-annotations for writes.
 homepage: https://fulcradynamics.com
 ---
 
 # Fulcra Context
 
-Fulcra gives agents and their humans scoped, secure access to read and write real-world context and shared human/agent memory: attention, events, location, calendar, health, wearables, and other streams. This skill is the read/context side: biometrics, sleep, activity, location, calendar, and health metrics. Use the companion `fulcra-annotations` skill when an agent needs to write events or memories back.
+Fulcra gives agents user-consented access to personal context such as biometrics, sleep, activity, calendar, location, and metric catalog data.
 
-## What This Enables
+This ClawHub skill is intentionally docs-first. It does not ship executable helper scripts, install hooks, background jobs, transcript processors, weather enrichment, export tools, or arbitrary CLI wrappers. Use Fulcra's hosted MCP server or the Fulcra CLI directly, and keep every read bounded to the user's current request.
 
-With Fulcra Context, agents can:
-- Know how a user slept → adjust briefing intensity
-- See heart rate / HRV trends → detect stress, suggest breaks
-- Check location → context-aware suggestions (home vs. office vs. traveling)
-- Read calendar → proactive meeting prep, schedule awareness
-- Track workouts → recovery-aware task scheduling
+Use the companion `fulcra-annotations` skill when an agent needs to create annotation definitions or record user-approved events back to Fulcra.
 
-## Privacy Model
+## Privacy Boundary
 
-- **OAuth2 per-user** — the user controls exactly what data the agent can access
-- **User data stays user-owned** — Fulcra stores it, the agent gets delegated access only
-- **Consent is revocable** — they can disconnect anytime
-- **NEVER share Fulcra data publicly without explicit permission**
+- Ask before reading Fulcra data.
+- Read only the metrics or time window needed for the current answer.
+- Do not print, log, paste, or forward access tokens, refresh tokens, credential files, raw private records, or direct capability URLs.
+- Do not share real calendar, location, notes, transcripts, or identifying context in public channels unless the user explicitly approves that exact disclosure.
+- Do not run transcript, third-party enrichment, raw export, or broad library-file workflows from this skill.
+- If the user asks for persistent files, exports, dashboards, or public examples, confirm the exact destination and retention plan first. Prefer synthetic fixtures for public artifacts.
 
 ## Setup
 
-### Option 1: MCP Server (Recommended)
+### Option 1: Hosted MCP Server
 
-Use Fulcra's hosted MCP server at `https://mcp.fulcradynamics.com/mcp` (Streamable HTTP transport, OAuth2 auth).
+Use Fulcra's hosted MCP server at:
 
-The user needs an authenticated Fulcra account, not an API key. Fulcra accounts can be created through the CLI and include 5 GB of storage free forever. Users who want biometrics, location, calendar, and other phone-collected context can install the Context iOS app, sign in with the same account, and sync data into that same free storage. The iOS app is no longer subscription gated; Android is coming soon.
+```text
+https://mcp.fulcradynamics.com/mcp
+```
 
-This skill has been tested with Hermes agent, Claude Desktop, Claude web, ChatGPT, and Codex.
+Claude Desktop settings:
 
-**Claude Desktop settings:**
 ```json
 {
   "mcpServers": {
@@ -46,7 +44,8 @@ This skill has been tested with Hermes agent, Claude Desktop, Claude web, ChatGP
 }
 ```
 
-**Or run locally via uvx:**
+Local stdio server option:
+
 ```json
 {
   "mcpServers": {
@@ -58,561 +57,124 @@ This skill has been tested with Hermes agent, Claude Desktop, Claude web, ChatGP
 }
 ```
 
-Also tested with: Goose, Windsurf, VS Code. Open source: [github.com/fulcradynamics/fulcra-context-mcp](https://github.com/fulcradynamics/fulcra-context-mcp)
+Open source MCP server: <https://github.com/fulcradynamics/fulcra-context-mcp>
 
-### Option 2: Fulcra CLI (Beta, Preferred for Automation)
+### Option 2: Fulcra CLI
 
-The Fulcra CLI is the preferred interface for new skills, scheduled jobs, and repeatable workflows. It requires Python 3.11+, `uv`, and `jq`.
+Use the Fulcra CLI for repeatable automation:
 
 ```bash
 uv tool run fulcra-api --help
 ```
 
-Authenticate once with the CLI. If the user does not already have an account, the CLI auth flow can handle account creation:
+Authenticate once:
 
 ```bash
 uv tool run fulcra-api auth login
 ```
 
-#### Remote/chat auth
+Remote/chat auth rules:
 
-Agents often run on a server while the user is interacting through a separate channel. Do not assume the browser on the agent host is the user's browser.
-
-When `uv tool run fulcra-api auth login` prints a device authorization URL and user code, surface both to the intended user in chat:
-
-1. Keep the CLI process running so it can poll for completion.
-2. Send the short-lived device URL and code to the intended user through the active trusted user channel.
-3. Do not send access tokens, refresh tokens, credential files, raw private records, or direct capability URLs.
-4. The user opens the URL on any device, confirms the displayed code, and approves access.
-5. Verify completion with a non-token command such as `uv tool run fulcra-api user-info`.
-
-If the CLI also opens a browser on the agent host, ignore that local browser unless the user is actually on that machine. The device URL/code flow is the portable path for remote agents.
-
-This creates `~/.config/fulcra/credentials.json`. The CLI refreshes access tokens as needed. The beta CLI currently exposes these JSON-output commands:
+1. Keep the CLI process running while it polls for approval.
+2. Send only the short-lived device URL and user code to the intended user.
+3. Never send token output or credential files.
+4. Verify completion with a non-token command:
 
 ```bash
-uv tool run fulcra-api catalog
-uv tool run fulcra-api get-records HeartRate "1 day"
-uv tool run fulcra-api metric-time-series HeartRate "1 day"
-uv tool run fulcra-api sleep-stages "12 hours"
-uv tool run fulcra-api sleep-cycles "1 week"
-uv tool run fulcra-api calendar-events "1 day"
-uv tool run fulcra-api apple-workouts "1 week"
-uv tool run fulcra-api location-at-time "2026-05-05T12:00:00Z"
 uv tool run fulcra-api user-info
 ```
 
-For automation, use the CLI-first adapter/service layer rather than hand-rolling `subprocess` calls. Set `FULCRA_CLI_COMMAND` only when you need to override the default `uv tool run fulcra-api` command.
+Fulcra accounts can be created through the CLI and include 5 GB of storage free forever. Users who want phone-collected biometrics, location, calendar, and other context can install the Context iOS app, sign in with the same account, and sync data into that storage.
 
-### Option 3: Python Service Layer
+## Allowed Read Workflows
 
-Use a shared service wrapper for skill scripts and scheduled workflows. It should prefer CLI credentials, normalize CLI JSON/JSONL output, and keep any legacy SDK credential handling behind an explicit opt-in fallback.
+Use these bounded read commands as patterns. Inspect `uv tool run fulcra-api --help` if the CLI version differs.
 
-```python
-from datetime import datetime, timezone, timedelta
-from fulcra_data_service import get_service
-
-api = get_service()
-now = datetime.now(timezone.utc)
-start = (now - timedelta(hours=12)).isoformat()
-end = now.isoformat()
-
-sleep = api.get_metric_samples(start, end, "SleepStage")
-hr = api.get_metric_samples(start, end, "HeartRate")
-events = api.get_calendar_events(start, end)
-catalog = api.metrics_catalog()
-```
-
-### Authentication Boundary
-
-This public skill does not ship token-printing helpers for chat. Authenticate with Fulcra's CLI or hosted MCP server, then let the scripts read through that already-authorized interface. CLI credentials are managed by Fulcra tooling in the user's home directory.
-
-## Quick Commands
-
-**Recommended:** Use the Fulcra CLI for new workflows, with the Python service layer as fallback for existing scripts.
-
-### Check sleep (last night)
+### Metric Catalog
 
 ```bash
-uv tool run fulcra-api sleep-stages "12 hours" | jq .
+uv tool run fulcra-api catalog
 ```
 
-```python
-from datetime import datetime, timezone, timedelta
-from fulcra_data_service import get_service
+Use this to discover available data types. Do not query every metric unless the user asks for a broad inventory.
 
-api = get_service()
-now = datetime.now(timezone.utc)
-start = (now - timedelta(hours=14)).isoformat()
-end = now.isoformat()
-
-sleep = api.get_metric_samples(start, end, "SleepStage")
-# Stage values: 0=InBed, 1=Awake, 2=Core, 3=Deep, 4=REM
-```
-
-### Check heart rate (recent)
+### Recent Heart Rate
 
 ```bash
-uv tool run fulcra-api get-records HeartRate "2 hours" | jq .
+uv tool run fulcra-api get-records HeartRate "2 hours"
 ```
 
-```python
-hr = api.get_metric_samples(
-    (now - timedelta(hours=2)).isoformat(),
-    now.isoformat(),
-    "HeartRate"
-)
-values = [s['value'] for s in hr if 'value' in s]
-avg_hr = sum(values) / len(values) if values else None
-```
+Summarize aggregates or notable patterns. Avoid dumping raw samples unless the user explicitly asks.
 
-### Check today's calendar
+### Sleep Context
 
 ```bash
-uv tool run fulcra-api calendar-events "1 day" | jq .
+uv tool run fulcra-api sleep-stages "12 hours"
+uv tool run fulcra-api sleep-cycles "1 week"
 ```
 
-```python
-day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-day_end = day_start + timedelta(hours=24)
-events = api.get_calendar_events(day_start.isoformat(), day_end.isoformat())
-for e in events:
-    print(f"{e.get('title')} — {e.get('start_time')}")
-```
+Use sleep context to adjust briefings or recovery advice. Make clear when data is missing or stale.
 
-### Available metrics
-
-```python
-catalog = api.metrics_catalog()
-for metric in catalog:
-    print(metric.get('name'), '-', metric.get('description'))
-```
-
-## Comprehensive Metrics Support (188 Total)
-
-Fulcra exposes a broad metric catalog. The category tables below list representative high-signal metrics for agent workflows; use `fulcra-api catalog metrics` or the MCP metric catalog when you need the complete current list.
-
-The fulcra-context skill now supports **ALL 188 metrics** available in the Fulcra API catalog, organized into meaningful categories:
-
-### 🫀 Cardiovascular examples
-| Metric | What It Tells You |
-|--------|-------------------|
-| HeartRate | Current stress/activity level |
-| RestingHeartRate | Baseline cardiovascular fitness |
-| HeartRateVariabilitySDNN | Recovery and autonomic nervous system state |
-| BloodPressureSystolic | Upper blood pressure reading |
-| BloodPressureDiastolic | Lower blood pressure reading |
-| PeripheralPerfusionIndex | Circulation efficiency |
-| AFibBurden | Atrial fibrillation monitoring |
-| HighHeartRateEvent, LowHeartRateEvent | Cardiac event detection |
-| IrregularHeartRhythmEvent | Arrhythmia detection |
-| WalkingHeartRate | Exercise response |
-| HeartRateRecoveryOneMinute | Post-exercise recovery |
-
-### 🫁 Respiratory examples
-| Metric | What It Tells You |
-|--------|-------------------|
-| RespiratoryRate | Breathing rate (breaths per minute) |
-| BloodOxygenSaturation | Blood oxygen levels |
-| PeakExpiratoryFlowRate | Lung function capacity |
-| ForcedExpiratoryVolumeOneSecond | Detailed lung function |
-| ForcedVitalCapacity | Maximum breathing capacity |
-| SleepApneaEvent | Sleep breathing disruptions |
-| SleepingBreathingDisturbances | Overall sleep respiratory health |
-| InhalerUse | Respiratory medication tracking |
-
-### 😴 Sleep examples
-| Metric | What It Tells You |
-|--------|-------------------|
-| SleepStage | Sleep quality — REM, Deep, Light, Awake |
-| SleepApneaEvent | Breathing interruptions during sleep |
-| SleepingBreathingDisturbances | Overall sleep respiratory patterns |
-| SleepingWristTemperature | Body temperature regulation during sleep |
-| SleepChanges | Sleep pattern disruptions |
-
-### 🏃 Activity & Exercise examples
-| Metric | What It Tells You |
-|--------|-------------------|
-| StepCount | Daily movement and activity level |
-| ActiveCaloriesBurned | Exercise intensity and energy expenditure |
-| BasalCaloriesBurned | Resting metabolic rate |
-| StairFlightsClimbed | Vertical activity and leg strength |
-| AppleWatchExerciseTime | Structured exercise duration |
-| AppleWatchMoveTime | Active movement minutes |
-| AppleWatchStandTime | Anti-sedentary behavior |
-| PhysicalEffort | Energy expenditure rate |
-| WorkoutEffortScore | Exercise intensity scoring |
-| VO2Max | Aerobic fitness capacity |
-| SixMinuteWalkDistance | Cardiovascular endurance test |
-
-### 🚶 Movement Analysis examples
-| Metric | What It Tells You |
-|--------|-------------------|
-| WalkingSpeed | Gait velocity and mobility |
-| WalkingAsymmetry | Balance and gait symmetry |
-| WalkingDoubleSupport | Gait stability indicator |
-| WalkingSteadiness | Fall risk assessment |
-| WalkingStrideLength | Gait efficiency |
-| RunningSpeed, RunningPower | Running performance |
-| RunningGroundContactTime | Running efficiency |
-| RunningStrideLength | Running biomechanics |
-| CyclingSpeed, CyclingCadence, CyclingPower | Cycling performance |
-
-### 📏 Body Measurements examples
-| Metric | What It Tells You |
-|--------|-------------------|
-| Weight | Body mass tracking |
-| Height | Growth monitoring |
-| BodyMassIndex | Weight-to-height ratio |
-| BodyFatPercentage | Body composition |
-| LeanBodyMass | Muscle mass tracking |
-| WaistCircumference | Metabolic health indicator |
-| BodyTemperature | Core body temperature |
-| BasalBodyTemperature | Fertility and metabolic tracking |
-
-### 🍎 Nutrition examples
-| Metric | What It Tells You |
-|--------|-------------------|
-| CaloriesConsumed | Daily energy intake |
-| DietaryCarbohydratesConsumed | Carb intake tracking |
-| DietaryProteinConsumed | Protein intake monitoring |
-| TotalFatConsumed | Fat consumption |
-| DietaryFiberConsumed | Digestive health tracking |
-| DietaryWaterConsumed | Hydration monitoring |
-| DietaryCaffeineConsumed | Stimulant intake |
-| AlcoholicDrinksConsumed | Alcohol consumption |
-| Plus 15 additional micronutrients... |
-
-### 💊 Vitamins & Minerals examples
-| Category | Metrics Available |
-|----------|-------------------|
-| Vitamins | A, B6, B12, C, D, E, K, Biotin, Folate, Niacin, etc. |
-| Minerals | Calcium, Iron, Magnesium, Potassium, Zinc, etc. |
-| Trace Elements | Chromium, Copper, Iodine, Manganese, etc. |
-
-### 🩸 Blood & Lab Values examples
-| Metric | What It Tells You |
-|--------|-------------------|
-| BloodGlucose | Blood sugar monitoring |
-| BloodAlcoholContent | Alcohol levels |
-| InsulinUnitsDelivered | Diabetes management |
-
-### 🤰 Reproductive Health examples
-| Metric | What It Tells You |
-|--------|-------------------|
-| MenstrualFlow | Cycle tracking |
-| OvulationTestResult | Fertility monitoring |
-| PregnancyTestResult | Pregnancy detection |
-| CervicalMucusQuality | Fertility indicators |
-| ContraceptiveUse | Birth control tracking |
-| Plus 10 additional reproductive metrics... |
-
-### 🤒 Symptoms & Events examples
-| Category | Symptoms Tracked |
-|----------|------------------|
-| Pain | Headache, back pain, abdominal cramps, etc. |
-| Respiratory | Coughing, wheezing, shortness of breath |
-| Digestive | Nausea, heartburn, constipation, etc. |
-| Neurological | Dizziness, fainting, memory lapse |
-| General | Fatigue, fever, chills, etc. |
-
-### 🌍 Environmental examples
-| Metric | What It Tells You |
-|--------|-------------------|
-| EnvironmentalAudioLevel | Noise exposure monitoring |
-| TimeInDaylight | Light exposure tracking |
-| UVExposure | Sun exposure monitoring |
-| WaterTemperature | Swimming/bathing conditions |
-| UnderwaterDepth | Diving activity tracking |
-
-### 🧘 Wellness Events examples
-| Metric | What It Tells You |
-|--------|-------------------|
-| HandwashingEvent | Hygiene habit tracking |
-| ToothbrushingEvent | Dental hygiene monitoring |
-| MindfulSession | Meditation and mindfulness |
-| MoodChanges | Emotional state tracking |
-| AppetiteChange | Eating behavior patterns |
-
-### 🏊 Sports-Specific examples
-| Activity | Metrics Available |
-|----------|-------------------|
-| Swimming | Stroke count, distance, underwater depth |
-| Rowing | Speed, distance, power |
-| Cycling | Speed, cadence, power, functional threshold |
-| Running | Speed, power, ground contact, stride length |
-| Winter Sports | Cross-country skiing, downhill sports |
-| Plus others... |
-
-## Usage Examples
-
-### Get Comprehensive Wellness Snapshot
-```python
-from fulcra_comprehensive_metrics import get_wellness_snapshot
-
-# Get key health metrics from last 24 hours
-data = get_wellness_snapshot(days=1)
-
-# This includes: HeartRate, RestingHeartRate, HRV, RespiratoryRate, 
-# BloodOxygenSaturation, StepCount, ActiveCaloriesBurned, SleepStage, BodyTemperature
-```
-
-### Get Category-Specific Metrics
-```python
-from fulcra_comprehensive_metrics import get_cardiovascular_metrics, get_respiratory_metrics
-
-# All 16 cardiovascular metrics
-cardio_data = get_cardiovascular_metrics(days=7)
-
-# All 11 respiratory metrics  
-resp_data = get_respiratory_metrics(days=7)
-```
-
-### Get Specific Metrics (Original Request)
-```python
-from fulcra_comprehensive_metrics import get_metric_data
-
-# The originally requested metrics
-specific_metrics = ['ActiveCaloriesBurned', 'RespiratoryRate', 'BloodOxygenSaturation']
-data = get_metric_data(specific_metrics, days=7)
-
-# Returns structured data with analysis
-for metric, info in data.items():
-    print(f"{metric}: {len(info['data'])} samples")
-    print(f"  Category: {info['category']}")
-    print(f"  Type: {info['metric_type']}")
-```
-
-### Comprehensive Health Dashboard
-```python
-from comprehensive_health_dashboard import ComprehensiveHealthDashboard
-
-# Full health analysis with all 188 metrics
-dashboard = ComprehensiveHealthDashboard(days=30)
-dashboard.collect_all_metrics()
-dashboard.analyze_health_patterns()
-report = dashboard.generate_comprehensive_report()
-
-# Export to files
-dashboard.export_to_json()
-dashboard.export_to_csv()
-```
-
-## Integration Patterns
-
-### Morning Briefing
-Check sleep + calendar + weather → compose a briefing calibrated to energy level.
-
-### Stress-Aware Communication
-Monitor HRV + heart rate → if elevated, keep messages brief and non-urgent.
-
-### Proactive Recovery
-After intense workout or poor sleep → suggest lighter schedule, remind about hydration.
-
-### Travel Awareness
-Location changes → adjust timezone handling, suggest local info, modify schedule expectations.
-
-## Public Sharing and Synthetic Data
-
-Most users should run this skill against their own consented Fulcra account, not a demo mode.
-
-If an agent needs sample output for documentation, tests, screenshots, videos, or public sharing, generate a separate synthetic fixture and clearly label it as synthetic. Do not mix real biometrics with fake calendar or location data unless the user explicitly asks for that behavior.
-
-Public-safe defaults:
-
-- Use synthetic data for public examples and documentation.
-- Do not publish real location, real calendar events, private notes, Magic Links, access tokens, or identifying data.
-- If a workflow exposes `FULCRA_DEMO_MODE` or `--demo`, treat it as a local testing helper, not the recommended public path.
-
-## Battle-Tested Utilities
-
-The skill includes production-ready utilities for comprehensive sleep and biometric analysis:
-
-### Annotations API
-
-Read and correlate existing user-logged events with biometric data.
-
-For creating annotation definitions or recording new annotation events, install and use the companion write-focused skill:
-
-Install the companion write-focused skill from ClawHub:
+### Activity And Workouts
 
 ```bash
-Install the `fulcra-annotations` skill from ClawHub
+uv tool run fulcra-api apple-workouts "1 week"
 ```
 
-Recommended boundary:
+Keep analysis scoped to activity, recovery, or scheduling questions the user actually asked.
 
-- `fulcra-context`: read Fulcra context and analyze health/activity/calendar/location data.
+### Calendar
+
+```bash
+uv tool run fulcra-api calendar-events "1 day"
+```
+
+Before using calendar data in a group chat, public artifact, or shared report, ask for explicit permission. Calendar entries may include names, locations, attendees, notes, and meeting links.
+
+### Location
+
+```bash
+uv tool run fulcra-api location-at-time "2026-05-05T12:00:00Z"
+```
+
+Use location only when necessary for the requested context. Do not send coordinates or place history to third-party services from this skill.
+
+## Consent Checkpoints
+
+Ask an explicit yes/no question before any workflow that would:
+
+- access calendar or location in a shared chat,
+- write local files containing raw Fulcra records,
+- create screenshots or charts from private data,
+- combine Fulcra data with external services,
+- retain data beyond the current session,
+- or publish any output outside the user's private workspace.
+
+For public examples, demos, screenshots, videos, tests, and docs, use synthetic data unless the user explicitly approves real data for that exact artifact.
+
+## Companion Skills
+
+- `fulcra-context`: read Fulcra context and analyze user-consented health, activity, calendar, location, and catalog data.
 - `fulcra-annotations`: create annotation definitions and record user-approved events.
 
-```python
-from fulcra_annotations import fetch_annotations
+Install the companion write-focused skill from ClawHub when needed:
 
-data = fetch_annotations(days=7)
-# Returns structured data:
-# - User-logged events
-# - Subjective ratings
-# - Medication or supplement timing if the user records it
-# - Notes and tags suitable for correlation
+```text
+Install the fulcra-annotations skill from ClawHub
 ```
 
-**Annotation Types:**
-- **Moment**: timestamped events
-- **Scale**: subjective 1-5 ratings
-- **Numeric**: counts, dosages, or measurements
-- **Boolean**: Yes/no events (future-proofed)
-- **Duration**: Timed activities (future-proofed)
+## Troubleshooting
 
-**Key Correlations:**
-- Timing of user-logged events vs. sleep, HRV, and activity trends
-- Subjective vs. objective sleep quality mismatches
-- Medication, supplement, caffeine, workout, or stress notes if the user chooses to record them
+If a command returns no data:
 
-### Sleep Stage Math
-
-**CRITICAL:** Use `sleep_cycles.total_time_asleep_ms` for authoritative sleep duration — it matches Apple Health. Manually summing stage durations from `sleep_agg` undercounts by ~20% because it misses transitional periods.
-
-```python
-from fulcra_sleep_utils import get_last_night_sleep, get_sleep_history
-
-# Last night's sleep with proper stage math
-sleep = get_last_night_sleep()
-# Returns: total_sleep_h, stages (dict), deep_pct, rem_pct, 
-#          efficiency, fragmentation, bedtime/wake strings
-
-# 7-day sleep trends
-history = get_sleep_history(days=7)
-```
-
-**UTC Date Selection Fix:** Fulcra's `sleep_agg` API buckets by UTC calendar day. The bucket for a given UTC date contains sleep that ENDED on that UTC day. Using today's local date (not current UTC date) as the target fixes the "PM bug" where evening API calls return empty results.
-
-### Timezone Handling
-
-**NEVER hardcode timezones.** Use the shared timezone utility:
-
-```python
-from fulcra_timezone import get_user_tz, now_local, today_local, to_local
-
-# User's timezone from Fulcra profile (handles DST automatically)
-tz = get_user_tz()  # Returns ZoneInfo object
-
-# Current time in user's local timezone
-now = now_local()
-today = today_local()
-
-# Convert UTC datetime to user's local time
-local_dt = to_local(utc_datetime)
-```
-
-**Features:**
-- Fetches timezone from Fulcra user profile
-- Disk caching (refreshed daily)
-- Automatic DST handling via Python's `ZoneInfo`
-- Fallback chain: API → cache → env var → America/New_York
-
-### Sleep Context Pipeline
-
-Fetch sleep context primitives, then compose any user-facing briefing inside the agent runtime:
-
-```python
-from fulcra_sleep_utils import get_last_night_sleep, get_sleep_history
-
-last_night = get_last_night_sleep()
-history = get_sleep_history(days=7)
-```
-
-**Data Integration:**
-- Sleep metrics (stages, efficiency, fragmentation)
-- Heart rate variability (HRV) and resting heart rate (RHR) trends
-- Overnight heart rate curve (min/max/avg)
-- Calendar meeting load (distinguishes real meetings from time blocks)
-- Exercise/walk detection from step count and walking speed
-- Location data for sleep context
-- User-recorded events such as caffeine, medication, supplement, workout, or stress notes
-- Subjective sleep quality vs. objective metrics
-
-**LLM boundary:** This public skill does not call LLM endpoints. If an agent turns Fulcra context into a written briefing, keep that model/provider choice inside the user-approved agent runtime.
-
-### Data Staleness Detection
-
-Monitor biometric data freshness and alert on sync failures:
-
-```python
-from fulcra_data_watchdog import main
-
-# Check if heart rate data is stale (>12h old)
-# Exits 0 = OK, 1 = STALE (needs escalation)
-main()
-```
-
-**Use case:** Apple Watch sync failures, Fulcra service issues, account problems. Run via cron every 2-4 hours.
-
-### Chart Generation
-
-Generate publication-ready sleep visualizations:
-
-```python
-from sleep_chart import create_chart
-
-# Dark theme, health-tech aesthetic
-create_chart(sleep_data, "sleep-analysis.png")
-# Generates: donut chart, stage breakdown bar, 7-night trends,
-# sleep+efficiency dual-axis charts
-```
-
-**Features:**
-- Premium dark theme optimized for health data
-- Sleep stage proportions with efficiency metrics
-- 7-night deep sleep and total sleep trends
-- Matplotlib-based, high DPI output
-
-## Environment Configuration
-
-The utilities support flexible deployment via environment variables:
-
-```bash
-# Data output directory (choose an app-owned writable directory)
-export FULCRA_OUTPUT_DIR=/custom/path
-
-# Optional context directory for local baselines or hypotheses
-export CONTEXT_DIR=/custom/context/path
-
-# User timezone override (default: from Fulcra API)
-export FULCRA_TIMEZONE=America/New_York
-```
-
-## Deployment Patterns
-
-### Cron Automation
-
-```bash
-# Data staleness check every 4 hours
-0 */4 * * * python3 scripts/fulcra_data_watchdog.py || echo "STALE DATA ALERT"
-```
-
-### Integration with AI Agents
-
-```python
-# Fetch raw context and compose in the agent runtime
-from fulcra_sleep_utils import get_last_night_sleep
-
-sleep = get_last_night_sleep()
-
-# Historical analysis
-history = get_sleep_history(days=30)
-avg_deep = sum(n['deep_pct'] for n in history) / len(history)
-
-# Context-aware responses
-if last_hrv < baseline_hrv * 0.8:
-    tone = "brief and supportive"  # User is stressed
-```
+1. Confirm the user has authenticated with `uv tool run fulcra-api user-info`.
+2. Confirm the user has synced data from the Context app or another source.
+3. Narrow the query to a known recent time window.
+4. Report missing or stale data honestly instead of fabricating context.
 
 ## Links
 
-- [Fulcra Platform](https://fulcradynamics.com)
-- [Developer Docs](https://fulcradynamics.github.io/developer-docs/)
-- [Life API Reference](https://fulcradynamics.github.io/developer-docs/api-reference/)
-- [Python Client](https://github.com/fulcradynamics/fulcra-api-python)
-- [MCP Server](https://github.com/fulcradynamics/fulcra-context-mcp)
-- [Demo Notebooks](https://github.com/fulcradynamics/demos)
-- [Discord](https://discord.com/invite/aunahVEnPU)
+- Fulcra Platform: <https://fulcradynamics.com>
+- Developer Docs: <https://fulcradynamics.github.io/developer-docs/>
+- Python Client: <https://github.com/fulcradynamics/fulcra-api-python>
+- MCP Server: <https://github.com/fulcradynamics/fulcra-context-mcp>
