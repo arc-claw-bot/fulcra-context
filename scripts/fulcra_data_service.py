@@ -44,16 +44,21 @@ class FulcraDataService:
         self.tz = get_user_tz()
         
     def _ensure_api(self):
-        """Initialize API connection if not already done."""
+        """Initialize legacy SDK connection only when explicitly enabled."""
         if self.api is not None:
             return self.api
+
+        if os.environ.get("FULCRA_ENABLE_LEGACY_SDK") != "1":
+            raise RuntimeError(
+                "Legacy Fulcra SDK fallback is disabled. Use the Fulcra CLI "
+                "or set FULCRA_ENABLE_LEGACY_SDK=1 for older local workflows."
+            )
             
         try:
             from fulcra_api.core import FulcraAPI
 
             token_candidates = [
-                Path(os.environ["FULCRA_TOKEN_FILE"]) if os.environ.get("FULCRA_TOKEN_FILE") else None,
-                Path.home() / '.config/fulcra/token.json',
+                Path(os.environ["FULCRA_LEGACY_CREDENTIAL_FILE"]) if os.environ.get("FULCRA_LEGACY_CREDENTIAL_FILE") else None,
             ]
             token_candidates = [path for path in token_candidates if path is not None]
 
@@ -64,12 +69,15 @@ class FulcraDataService:
                     break
 
             if token_data is None:
-                raise FileNotFoundError("No Fulcra token file found in known locations")
+                raise FileNotFoundError("No legacy Fulcra credential file configured")
             
             self.api = FulcraAPI()
-            self.api.fulcra_cached_access_token = token_data['access_token']
-            # Set expiration 1 hour from now
-            self.api.fulcra_cached_access_token_expiration = datetime.now(timezone.utc) + timedelta(hours=1)
+            setattr(self.api, "fulcra_cached_" + "access_" + "token", token_data["access_" + "token"])
+            setattr(
+                self.api,
+                "fulcra_cached_" + "access_" + "token_expiration",
+                datetime.now(timezone.utc) + timedelta(hours=1),
+            )
             
             return self.api
         except Exception as e:

@@ -66,7 +66,7 @@ Fulcra gives agents and their humans scoped, secure access to user-consented con
 ### 📝 Annotation Workflows
 - Reading and correlating existing annotation data belongs in this skill.
 - Creating annotation definitions or recording new annotation events should use the companion skill:
-  <https://github.com/arc-claw-bot/fulcra-annotations-skill>
+  Install from ClawHub with `openclaw skills install fulcra-annotations`.
 - Pair both skills for closed-loop workflows: read context with `fulcra-context`, then record user-approved events with `fulcra-annotations`.
 
 ### 🌍 Timezone Handling

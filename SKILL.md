@@ -106,7 +106,7 @@ For automation, use the CLI-first adapter/service layer rather than hand-rolling
 
 ### Option 3: Python Service Layer
 
-Use a shared service wrapper for skill scripts and scheduled workflows. It should prefer CLI credentials, normalize CLI JSON/JSONL output, and keep direct token handling inside the token manager fallback.
+Use a shared service wrapper for skill scripts and scheduled workflows. It should prefer CLI credentials, normalize CLI JSON/JSONL output, and keep any legacy SDK credential handling behind an explicit opt-in fallback.
 
 ```python
 from datetime import datetime, timezone, timedelta
@@ -434,7 +434,11 @@ Read and correlate existing user-logged events with biometric data.
 
 For creating annotation definitions or recording new annotation events, install and use the companion write-focused skill:
 
-<https://github.com/arc-claw-bot/fulcra-annotations-skill>
+Install the companion write-focused skill from ClawHub:
+
+```bash
+openclaw skills install fulcra-annotations
+```
 
 Recommended boundary:
 

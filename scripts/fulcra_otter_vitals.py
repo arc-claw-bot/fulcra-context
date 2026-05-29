@@ -10,7 +10,7 @@ from dateutil import parser as date_parser
 from pathlib import Path
 
 # Add fulcra-context scripts to path
-SCRIPT_DIR = Path('/home/leif/.openclaw/workspace/fulcra-context/scripts').resolve()
+SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
 
 try:
