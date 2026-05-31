@@ -24,12 +24,18 @@ from typing import Any, Iterable, Optional
 
 CLI_ENV = "FULCRA_CLI_COMMAND"
 CLI_CANDIDATES = ("uv tool run fulcra-api", "fulcra-api", "fulcra", "fulcra-cli", "fulcracli")
+SAFE_CLI_EXECUTABLES = frozenset({"uv", "fulcra-api", "fulcra", "fulcra-cli", "fulcracli"})
 
 
 def _command_parts() -> list[list[str]]:
     explicit = os.environ.get(CLI_ENV, "").strip()
     if explicit:
-        return [shlex.split(explicit)]
+        parts = shlex.split(explicit)
+        if parts and parts[0] not in SAFE_CLI_EXECUTABLES:
+            raise ValueError(
+                f"{CLI_ENV} first token {parts[0]!r} is not a known Fulcra CLI executable"
+            )
+        return [parts]
 
     commands = []
     for candidate in CLI_CANDIDATES:
@@ -104,10 +110,6 @@ def _extract_list(payload: Any, keys: Iterable[str]) -> Optional[list]:
     return None
 
 
-def _run_cli_public(args: list[str]) -> Optional[Any]:
-    """Public wrapper to execute arbitrary CLI commands."""
-    return _run_cli(args)
-
 def fetch_metric_samples(start_date: str, end_date: str, metric_name: str) -> Optional[list]:
     """Fetch raw metric samples from a Fulcra CLI if one is available."""
     attempts = []
@@ -135,6 +137,20 @@ def fetch_metric_time_series(start_date: str, end_date: str, metric_name: str, s
                 [*base, "metric-time-series", "--sample-rate", str(sample_rate), "--agg-function", agg_function, metric_name, start_date, end_date],
             ]
         )
+
+    for args in attempts:
+        payload = _run_cli(args)
+        series = _extract_list(payload, ("series", "data", "items", "results"))
+        if series is not None:
+            return series
+    return None
+
+
+def fetch_metric_time_series_range(time_range: str, metric_name: str, sample_rate: int = 1, agg_function: str = "mean") -> Optional[list]:
+    """Fetch metric time series for a CLI range expression, without exposing arbitrary CLI passthrough."""
+    attempts = []
+    for base in _command_parts():
+        attempts.append([*base, "metric-time-series", "-s", str(sample_rate), "-a", agg_function, metric_name, "-r", time_range])
 
     for args in attempts:
         payload = _run_cli(args)
@@ -226,6 +242,23 @@ def fetch_location_time_series(start_date: str, end_date: str, sample_rate: int 
     return None
 
 
+def fetch_location_time_series_range(time_range: str, sample_rate: int = 900, reverse_geocode: bool = False) -> Optional[list]:
+    """Fetch location time series for a CLI range expression, without exposing arbitrary CLI passthrough."""
+    attempts = []
+    for base in _command_parts():
+        cmd = [*base, "location-time-series", "-s", str(sample_rate), "-r", time_range]
+        if reverse_geocode:
+            cmd.append("--reverse-geocode")
+        attempts.append(cmd)
+
+    for args in attempts:
+        payload = _run_cli(args)
+        series = _extract_list(payload, ("series", "data", "items", "results"))
+        if series is not None:
+            return series
+    return None
+
+
 def fetch_calendars() -> Optional[list]:
     """Fetch all calendars from a Fulcra CLI if one is available."""
     attempts = []
@@ -260,8 +293,22 @@ def fetch_catalog() -> Optional[list]:
             return cat
     return None
 
+def _validate_library_path(path: str) -> str:
+    import posixpath
+
+    raw_parts = path.replace("\\", "/").split("/")
+    if any(part == ".." for part in raw_parts):
+        raise ValueError(f"Rejected Fulcra Library path with traversal: {path!r}")
+
+    normalized = posixpath.normpath("/" + path.lstrip("/"))
+    if ".." in normalized.split("/"):
+        raise ValueError(f"Rejected Fulcra Library path with traversal: {path!r}")
+    return normalized
+
+
 def fetch_library_files(path: str) -> Optional[list]:
     """List files in the Fulcra Library via the CLI file commands."""
+    path = _validate_library_path(path)
     attempts = []
     for base in _command_parts():
         attempts.extend([
@@ -289,6 +336,7 @@ def fetch_library_files(path: str) -> Optional[list]:
 
 def download_library_file(path: str) -> Optional[str]:
     """Download a file from the Fulcra Library via the CLI and return its content as a string."""
+    path = _validate_library_path(path)
     attempts = []
     for base in _command_parts():
         attempts.extend([

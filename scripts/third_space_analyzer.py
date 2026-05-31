@@ -13,8 +13,6 @@ Usage:
 
 import argparse
 import datetime
-import os
-import shlex
 from collections import Counter
 from math import radians, cos, sin, asin, sqrt
 from typing import List, Dict, Any, Optional
@@ -42,20 +40,9 @@ class ScheduleTemplate:
             return dt.weekday() < 5
         return True
 
-def fetch_cli_json(cmd_args: List[str]) -> List[Dict[str, Any]]:
-    # Instead of raw _run_cli, we build the command locally using the explicit ENV fallback
-    # to avoid breaking the core adapter, but still leverage our public wrapper.
-    base_cmd_env = os.environ.get("FULCRA_CLI_COMMAND", "uv tool run fulcra-api")
-    base_cmd = shlex.split(base_cmd_env)
-    cmd = [*base_cmd, *cmd_args]
-    payload = fulcra_cli_adapter._run_cli_public(cmd)
-    if payload is None:
-        return []
-    return payload if isinstance(payload, list) else [payload]
-
 def get_temporal_baseline(time_range: str, schedule: ScheduleTemplate, metric: str) -> Optional[float]:
     print(f"Fetching baseline for {metric} over {time_range}...")
-    series = fetch_cli_json(["metric-time-series", "-s", "3600", "-a", "mean", metric, time_range])
+    series = fulcra_cli_adapter.fetch_metric_time_series_range(time_range, metric, 3600, "mean") or []
     
     valid_vals = []
     for item in series:
@@ -79,12 +66,23 @@ def main():
     parser_obj = argparse.ArgumentParser()
     parser_obj.add_argument("--template", type=str, default="weekends")
     parser_obj.add_argument("--range", type=str, default="14 days")
+    parser_obj.add_argument(
+        "--include-weather",
+        action="store_true",
+        help="Send approximate Fulcra location coordinates to Visual Crossing for historical weather correlation.",
+    )
     args = parser_obj.parse_args()
 
     schedule = ScheduleTemplate(args.template)
     
-    weather_provider = WeatherProvider()
-    if not weather_provider.is_configured():
+    weather_provider = WeatherProvider() if args.include_weather else None
+    if args.include_weather and weather_provider and weather_provider.is_configured():
+        print(
+            "\n[consent] Weather lookup enabled: approximate Fulcra location "
+            "coordinates and dates will be sent to Visual Crossing for "
+            "historical weather correlation."
+        )
+    elif args.include_weather:
         print("\n[!] NOTE: WEATHER_API_KEY environment variable is not set.")
         print("[!] Environmental context (Temperature/Conditions) will be skipped.")
         print("[!] To enable this, get a free key at https://www.visualcrossing.com/ and set it.\n")
@@ -99,7 +97,7 @@ def main():
 
     # Fetch Location Data
     print(f"Fetching location data over {args.range}...")
-    locations = fetch_cli_json(["location-time-series", "-s", "900", "-r", args.range])
+    locations = fulcra_cli_adapter.fetch_location_time_series_range(args.range, 900) or []
 
     valid_points = []
     for loc in locations:
@@ -165,10 +163,10 @@ def main():
         stay["avg_hr"] = sum([v for i in (hr_series or []) for k,v in i.items() if k!='time' and isinstance(v, (int,float))]) / len([v for i in (hr_series or []) for k,v in i.items() if k!='time' and isinstance(v, (int,float))]) if hr_series and [v for i in hr_series for k,v in i.items() if k!='time' and isinstance(v, (int,float))] else None
         stay["avg_hrv"] = sum([v for i in (hrv_series or []) for k,v in i.items() if k!='time' and isinstance(v, (int,float))]) / len([v for i in (hrv_series or []) for k,v in i.items() if k!='time' and isinstance(v, (int,float))]) if hrv_series and [v for i in hrv_series for k,v in i.items() if k!='time' and isinstance(v, (int,float))] else None
 
-        # Fetch Weather
-        midpoint = stay["start"] + (stay["end"] - stay["start"]) / 2
-        weather = weather_provider.get_historical_weather(stay["grid_key"][0], stay["grid_key"][1], midpoint)
-        stay["weather"] = weather
+        if weather_provider and weather_provider.is_configured():
+            midpoint = stay["start"] + (stay["end"] - stay["start"]) / 2
+            weather = weather_provider.get_historical_weather(stay["grid_key"][0], stay["grid_key"][1], midpoint)
+            stay["weather"] = weather
     location_stats = {}
     for stay in stays:
         gk = stay["grid_key"]

@@ -1,121 +1,81 @@
 # Fulcra Context
 
-Fulcra gives agents and their humans scoped, secure access to user-consented context and shared human/agent memory: attention, events, activity, health, wearables, and other streams. This skill is the read/context side via the Fulcra Life API, MCP server, and CLI. Use it for reusable agent integrations, and pair it with `fulcra-annotations` when an agent needs to write user-approved moments or values back.
+Fulcra Context is a docs-first ClawHub skill for connecting agents to user-consented Fulcra data through the hosted MCP server or Fulcra CLI.
+
+The published ClawHub package intentionally does not include executable helper scripts. That keeps the install surface narrow: no install hooks, no transcript processing, no third-party enrichment, no raw export utilities, no background jobs, and no arbitrary CLI wrapper.
 
 ## Quick Start
 
-1. **Setup Fulcra account**: Create or sign in to a Fulcra account through the CLI auth flow. Accounts include 5 GB of storage free forever. No API key is required.
+1. Authenticate with Fulcra:
 
-2. **Authorize the agent**:
    ```bash
    uv tool run fulcra-api auth login
    ```
-   For remote agents, surface the printed device URL and code to the intended user in chat through the active trusted user channel. The user can approve from any browser while the CLI keeps polling on the agent host. Never send access tokens or credential files.
 
-   Users who want biometrics, location, calendar, and other phone-collected context can install the [Context iOS app](https://apps.apple.com/app/id1633037434) and sign in with the same account. The app uses the same 5 GB free storage and is no longer subscription gated. Android is coming soon.
+   For remote agents, share only the device URL and user code with the intended user. Never share token output or credential files.
 
-3. **Check last night's sleep**:
-   ```python
-   from fulcra_sleep_utils import get_last_night_sleep
-   sleep = get_last_night_sleep()
-   print(f"{sleep['total_sleep_h']}h sleep, {sleep['deep_pct']}% deep")
+2. Verify access:
+
+   ```bash
+   uv tool run fulcra-api user-info
    ```
 
-4. **Access comprehensive metrics**:
-   ```python
-   from fulcra_comprehensive_metrics import get_wellness_snapshot, get_cardiovascular_metrics
-   
-   # Quick wellness overview
-   data = get_wellness_snapshot(days=1)
-   
-   # All cardiovascular metrics (16 total)
-   cardio = get_cardiovascular_metrics(days=7)
+3. Read only the data needed for the current task:
+
+   ```bash
+   uv tool run fulcra-api catalog
+   uv tool run fulcra-api get-records HeartRate "2 hours"
+   uv tool run fulcra-api sleep-stages "12 hours"
+   uv tool run fulcra-api calendar-events "1 day"
    ```
 
-5. **Generate a local health dashboard summary**:
-   ```python
-   from comprehensive_health_dashboard import ComprehensiveHealthDashboard
-   
-   dashboard = ComprehensiveHealthDashboard(days=30)
-   dashboard.collect_all_metrics()
-   dashboard.analyze_health_patterns()
-   report = dashboard.generate_comprehensive_report()
-   ```
+## Privacy Rules
 
-## What's Included
+- Ask before reading Fulcra data.
+- Keep reads scoped to the user's request.
+- Do not expose tokens, credential files, raw private records, or capability URLs.
+- Ask before using calendar or location in shared contexts.
+- Do not send coordinates or place history to third-party services from this skill.
+- Use synthetic data for public demos, screenshots, docs, and tests unless the user explicitly approves real data for that exact artifact.
 
-### 🫀 **NEW: Comprehensive Metrics (188 Total)**
-- **fulcra_comprehensive_metrics.py**: Access ALL Fulcra metrics organized by category
-- **comprehensive_health_dashboard.py**: Full health analysis with trend detection and alerts
-- Compose sleep analysis inside your agent runtime from raw context returned by this skill. This public package does not include LLM-calling report scripts.
-- Supports: Cardiovascular (16), Respiratory (11), Activity (13), Sleep (6), Movement (15), Body measurements (8), Nutrition (23), Vitamins/Minerals (26), Blood/Lab (3), Reproductive (15), Symptoms (30), Environmental (9), Wellness events (7), Sports-specific (13), and more
+## What To Use This Skill For
 
-### 📊 Sleep Analysis
-- **fulcra_sleep_utils.py**: Accurate sleep duration using `sleep_cycles` API, fixes UTC date selection bug
-- Use `fulcra_sleep_utils.py` output to compose briefings inside your agent runtime.
-- **sleep_chart.py**: Publication-ready dark-theme visualizations
+- Sleep and recovery context.
+- Recent biometric or activity summaries.
+- Metric catalog discovery.
+- Calendar-aware private briefings.
+- Location-aware private assistance when explicitly requested.
 
-### Context Vitals Correlation
-- **fulcra_calendar_vitals.py**: Aligns high-resolution heart rate data with user-consented event windows.
-- **calendar_vitals_chart.py**: Dark-theme visualizations for reviewing physiological context alongside user-approved schedule context.
+Use `fulcra-annotations` for write workflows such as creating annotation definitions or recording user-approved events.
 
-### Transcript Context Enrichment
-- **fulcra_otter_vitals.py**: Parses user-provided `.docx` transcript exports from the Fulcra Library and aligns embedded timestamps with physiological time series. This is intended for private, local analysis with explicit user consent.
-- **Agent-Assisted Workflow**: Agents can summarize notable physiological context and save derived JSON payloads back to the user's Fulcra drive for local visualization. Do not publish transcripts, summaries, or raw private records without explicit permission.
+## MCP Server
 
-### 📝 Annotation Workflows
-- Reading and correlating existing annotation data belongs in this skill.
-- Creating annotation definitions or recording new annotation events should use the companion skill:
-  Install from ClawHub with `Install the `fulcra-annotations` skill from ClawHub`.
-- Pair both skills for closed-loop workflows: read context with `fulcra-context`, then record user-approved events with `fulcra-annotations`.
+Hosted MCP endpoint:
 
-### 🌍 Timezone Handling
-- **fulcra_timezone.py**: Dynamic timezone from Fulcra API, automatic DST handling
-- Never hardcode timezones or manually subtract UTC offsets
-
-### 🚨 Monitoring
-- **fulcra_data_watchdog.py**: Alert when biometric data goes stale (>12h)
-
-## Key Features
-
-✅ **Complete metrics coverage**: ALL 188 Fulcra metrics organized by category
-✅ **Comprehensive health analysis**: Trend detection, correlation analysis, health alerts
-✅ **Sleep context primitives**: Sleep + respiratory + activity + environment data for agent-authored briefings
-✅ **Sleep stage math fix**: Use authoritative `total_time_asleep_ms` (matches Apple Health)
-✅ **UTC date selection fix**: Today's local date = correct UTC bucket for sleep data
-✅ **Timezone-aware**: Fetches user's timezone from Fulcra, handles DST automatically
-✅ **Cross-referenced analysis**: Sleep + HRV + user-consented events + exercise + annotations
-✅ **Production-ready**: 6,000+ lines of battle-tested utilities
-✅ **Privacy-safe**: Generic paths, no hardcoded personal info, sanitized for publishing
-✅ **Agent-tested**: Tested with Hermes agent, Claude Desktop, Claude web, ChatGPT, and Codex
-
-## Environment Variables
-
-```bash
-# Override the Fulcra CLI command when the binary is not on PATH.
-export FULCRA_CLI_COMMAND="uv tool run fulcra-api"
-
-# Output directory (choose an app-owned writable directory)
-export FULCRA_OUTPUT_DIR=/custom/path
-
-# Optional context files for local baselines or hypotheses
-export CONTEXT_DIR=/custom/context/path
-
-# Timezone override (default: from Fulcra API)
-export FULCRA_TIMEZONE=America/New_York
+```text
+https://mcp.fulcradynamics.com/mcp
 ```
 
-## Cron Jobs
+Claude Desktop example:
 
-```bash
-# Monitor data freshness
-0 */4 * * * python3 scripts/fulcra_data_watchdog.py
+```json
+{
+  "mcpServers": {
+    "fulcra_context": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://mcp.fulcradynamics.com/mcp"]
+    }
+  }
+}
 ```
+
+## Source Helpers
+
+The GitHub repository may contain optional source helper scripts for maintainers and advanced local deployments. Those scripts are not part of the ClawHub skill package. If you clone the source repository and run helper scripts manually, review the code, use private output directories, and get explicit user approval for any local files, calendar/location access, or persistent exports.
 
 ## Links
 
-- 🏠 [Fulcra Platform](https://fulcradynamics.com)
-- 📖 [Developer Docs](https://fulcradynamics.github.io/developer-docs/)
-- 🐍 [Python Client](https://github.com/fulcradynamics/fulcra-api-python)
-- 🔗 [MCP Server](https://github.com/fulcradynamics/fulcra-context-mcp)
-- 💬 [Discord](https://discord.com/invite/aunahVEnPU)
+- Fulcra Platform: <https://fulcradynamics.com>
+- Developer Docs: <https://fulcradynamics.github.io/developer-docs/>
+- Python Client: <https://github.com/fulcradynamics/fulcra-api-python>
+- MCP Server: <https://github.com/fulcradynamics/fulcra-context-mcp>

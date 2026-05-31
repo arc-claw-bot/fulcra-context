@@ -423,6 +423,7 @@ class ComprehensiveHealthDashboard:
             json.dump(report, f, indent=2, default=str)
         
         logger.info(f"Report exported to {filepath}")
+        print(f"[export] Wrote {filepath} ({filepath.stat().st_size} bytes)")
         return filepath
     
     def export_to_csv(self, filename: Optional[str] = None) -> Path:
@@ -450,6 +451,7 @@ class ComprehensiveHealthDashboard:
                     ])
         
         logger.info(f"CSV exported to {filepath}")
+        print(f"[export] Wrote {filepath} ({filepath.stat().st_size} bytes)")
         return filepath
 
 
