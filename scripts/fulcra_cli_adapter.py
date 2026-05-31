@@ -296,6 +296,10 @@ def fetch_catalog() -> Optional[list]:
 def _validate_library_path(path: str) -> str:
     import posixpath
 
+    raw_parts = path.replace("\\", "/").split("/")
+    if any(part == ".." for part in raw_parts):
+        raise ValueError(f"Rejected Fulcra Library path with traversal: {path!r}")
+
     normalized = posixpath.normpath("/" + path.lstrip("/"))
     if ".." in normalized.split("/"):
         raise ValueError(f"Rejected Fulcra Library path with traversal: {path!r}")
